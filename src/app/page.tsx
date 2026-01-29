@@ -186,7 +186,7 @@ export default function Home() {
                       aria-label="Edit task title"
                     />
                     <div className="text-[10px] uppercase tracking-[0.2em] text-black/50">
-                      {t.date} {t.start_time}
+                      {t.date} {t.start_time} · {t.duration_minutes}m
                     </div>
                     <button
                       className="rounded-full border border-black/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-black/60 transition hover:border-black/60 hover:bg-black hover:text-white"
