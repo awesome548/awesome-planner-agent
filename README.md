@@ -19,6 +19,16 @@ A minimal planner that turns plain-language tasks into a daily schedule and can 
 npm install
 ```
 
+Helpful Google setup links:
+```text
+Google Cloud Console: https://console.cloud.google.com/
+Create/select a project: https://console.cloud.google.com/projectcreate
+APIs & Services Library: https://console.cloud.google.com/apis/library
+Credentials (OAuth client IDs + API keys): https://console.cloud.google.com/apis/credentials
+OAuth consent screen: https://console.cloud.google.com/apis/credentials/consent
+Google Calendar API overview: https://developers.google.com/calendar/api
+```
+
 2) Create `.env.local`
 ```bash
 OPENAI_API_KEY=
@@ -27,6 +37,7 @@ NOTION_PAGE_ID=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_API_KEY=
+GOOGLE_REDIRECT_URI=
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
@@ -41,7 +52,6 @@ Open http://localhost:3000.
 ## Scripts
 - `npm run dev` — start dev server
 - `npm run build` — production build
-- `npm run start` — start production server
 - `npm run lint` — lint
 
 ## License
