@@ -25,7 +25,14 @@ export default function Home() {
   const [usage, setUsage] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    setUsage(getUsageMap());
+    let active = true;
+    (async () => {
+      const next = await getUsageMap();
+      if (active) setUsage(next);
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const today = useMemo(() => new Date(), []);
@@ -69,8 +76,8 @@ export default function Home() {
 
     setPlan(data.plan);
     setDraftTasks(data.plan?.tasks ?? []);
-    markTodayUsed();
-    setUsage(getUsageMap());
+    await markTodayUsed();
+    setUsage(await getUsageMap());
   }
 
   async function confirmAndCreate() {

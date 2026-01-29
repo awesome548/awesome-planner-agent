@@ -18,7 +18,14 @@ export default function UsagePage() {
   const [usage, setUsage] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    setUsage(getUsageMap());
+    let active = true;
+    (async () => {
+      const next = await getUsageMap();
+      if (active) setUsage(next);
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const year = useMemo(() => new Date().getFullYear(), []);

@@ -1,22 +1,35 @@
-const KEY = "plannerUsage:v1";
+import { getSupabaseClient } from "@/lib/supabase";
+
+const TABLE = "usage_records";
+
+type UsageRow = {
+  used_on: string;
+};
 
 // Stores as: { "2026-01-24": true, ... }
-export function getUsageMap(): Record<string, boolean> {
+export async function getUsageMap(): Promise<Record<string, boolean>> {
   if (typeof window === "undefined") return {};
-  try {
-    return JSON.parse(localStorage.getItem(KEY) || "{}");
-  } catch {
-    return {};
+
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.from(TABLE).select("used_on");
+
+  if (error || !data) return {};
+
+  const map: Record<string, boolean> = {};
+  for (const row of data as UsageRow[]) {
+    map[row.used_on] = true;
   }
+  return map;
 }
 
-export function markTodayUsed() {
+export async function markTodayUsed() {
   if (typeof window === "undefined") return;
-  const map = getUsageMap();
+
+  const supabase = getSupabaseClient();
   const today = new Date();
   const key = toISODate(today);
-  map[key] = true;
-  localStorage.setItem(KEY, JSON.stringify(map));
+
+  await supabase.from(TABLE).upsert({ used_on: key }, { onConflict: "used_on" });
 }
 
 export function toISODate(d: Date) {
