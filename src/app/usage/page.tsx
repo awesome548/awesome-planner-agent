@@ -32,6 +32,11 @@ export default function UsagePage() {
   const totalDays = useMemo(() => 365, []);
   const today = useMemo(() => new Date(), []);
   const daysLeft = useMemo(() => Math.max(totalDays - dayOfYear(today), 0), [totalDays, today]);
+  const todayStart = useMemo(() => {
+    const base = new Date(today);
+    base.setHours(0, 0, 0, 0);
+    return base;
+  }, [today]);
 
   const dots = useMemo(() => {
     return Array.from({ length: totalDays }).map((_, i) => {
@@ -51,17 +56,28 @@ export default function UsagePage() {
         </div>
 
         <div className="mt-6 grid grid-cols-30 gap-2 sm:gap-3 md:gap-3">
-          {dots.map(({ key }) => {
+          {dots.map(({ key, date }) => {
             const filled = Boolean(usage[key]);
+            const day = new Date(date);
+            day.setHours(0, 0, 0, 0);
+            const isPast = day.getTime() < todayStart.getTime();
+            const isFuture = day.getTime() > todayStart.getTime();
             return (
               <div
                 key={key}
                 title={key}
-                className={[
-                  "h-2.5 w-2.5 rounded-full transition-colors cursor-pointer",
-                  filled ? "bg-black hover:bg-black/80" : "bg-black/15 hover:bg-black/30",
-                ].join(" ")}
-              />
+                className="h-3.5 w-3.5 flex items-center justify-center cursor-pointer"
+              >
+                {filled ? (
+                  <span className="h-3 w-3 rounded-full bg-black transition-colors hover:bg-black/80" />
+                ) : isPast ? (
+                  <span className="h-0.5 w-3 rounded-full bg-black/30 transition-colors hover:bg-black/50" />
+                ) : isFuture ? (
+                  <span className="h-2 w-2 rounded-full border border-black/20 bg-transparent transition-colors hover:border-black/40" />
+                ) : (
+                  <span className="h-0.5 w-3 rounded-full bg-black/30 transition-colors hover:bg-black/50" />
+                )}
+              </div>
             );
           })}
         </div>

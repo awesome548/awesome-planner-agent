@@ -42,6 +42,11 @@ export default function Home() {
     const dd = String(today.getDate()).padStart(2, "0");
     return `${yyyy}.${mm}.${dd}`;
   }, [today]);
+  const todayStart = useMemo(() => {
+    const base = new Date(today);
+    base.setHours(0, 0, 0, 0);
+    return base;
+  }, [today]);
 
   const weekDates = useMemo(() => {
     const base = new Date();
@@ -130,10 +135,22 @@ export default function Home() {
           <div className="mt-2 grid grid-cols-7 gap-3 place-items-center">
             {weekDates.map((d) => {
               const used = Boolean(usage[toISODate(d)]);
-              return used ? (
-                <span key={d.toDateString()} className="h-2 w-2 rounded-full bg-black" />
-              ) : (
-                <span key={d.toDateString()} className="h-0.5 w-5 rounded-full bg-black/30" />
+              const day = new Date(d);
+              day.setHours(0, 0, 0, 0);
+              const isPast = day.getTime() < todayStart.getTime();
+              const isFuture = day.getTime() > todayStart.getTime();
+              return (
+                <span key={d.toDateString()} className="flex items-center justify-center h-4 w-4">
+                  {used ? (
+                    <span className="h-3 w-3 rounded-full bg-black" />
+                  ) : isPast ? (
+                    <span className="h-0.5 w-3 rounded-full bg-black/30" />
+                  ) : isFuture ? (
+                    <span className="h-2 w-2 rounded-full border border-black/20 bg-transparent" />
+                  ) : (
+                    <span className="h-0.5 w-3 rounded-full bg-black/30" />
+                  )}
+                </span>
               );
             })}
           </div>
