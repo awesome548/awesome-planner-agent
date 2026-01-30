@@ -44,7 +44,7 @@ export async function POST(req: Request) {
         },
         {
           role: "user",
-          content: `User input:\n${text}\n\nToday (local to user): ${nowLocal}\n\nScheduling rule: If a task is scheduled for today, consider current local time and plan events ahead. Future dates are allowed; do not schedule any task in the past.\n\nPlanner rules (from Notion):\n${notionRules}`,
+          content: `User input:\n${text}\n\nToday (local to user): ${nowLocal}\n\nScheduling rule: Consider current local time and plan events ahead. Future dates are allowed; do not schedule any task in the past.\n\nPlanner rules (from Notion):\n${notionRules}`,
         },
       ],
       text: {
