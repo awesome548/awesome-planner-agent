@@ -1,9 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useSession, signIn, signOut } from "next-auth/react";
+import {
+  CalendarDaysIcon,
+  CalendarIcon,
+  SparklesIcon,
+  UserCircleIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 import { getUsageMap, markTodayUsed, toISODate } from "@/lib/usage";
+import BottomBar from "@/components/bottomBar";
+import PageHeader from "@/components/pageHeader";
 
 type Task = {
   title: string;
@@ -113,16 +121,22 @@ export default function Home() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#ffffff_0%,_#f8f6f1_55%,_#f1efe8_100%)]" />
       <div className="pointer-events-none absolute inset-0 opacity-80 bg-[radial-gradient(#1a1a1a1a_1px,transparent_1px)] [background-size:20px_20px]" />
 
-      <div className="relative z-10 max-w-4xl mx-auto px-6 pt-10 pb-36 flex min-h-screen flex-col">
-        <header className="flex items-center justify-between">
-          <div className="text-2xl font-semibold tracking-tight">{todayLabel}</div>
-          <button
-            className="rounded-full border border-black/10 px-3 py-1.5 text-xs uppercase tracking-[0.3em] transition hover:border-black/40 hover:bg-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40"
-            onClick={() => (session ? signOut() : signIn("google"))}
-          >
-            {session ? "Sign out" : "Sign in"}
-          </button>
-        </header>
+      <div className="relative z-10 max-w-5xl mx-auto px-6 pt-10 pb-36 flex min-h-screen flex-col">
+        <PageHeader
+          eyebrow="Day planner"
+          title={todayLabel}
+          icon={<CalendarDaysIcon className="size-6" />}
+          right={
+            <button
+              className="h-9 w-9 rounded-full border border-black/20 flex items-center justify-center text-black/70 transition hover:border-black/60 hover:bg-black hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40"
+              onClick={() => (session ? signOut() : signIn("google"))}
+              aria-label={session ? "Sign out" : "Sign in"}
+              title={session ? "Sign out" : "Sign in"}
+            >
+              <UserCircleIcon className="h-5 w-5" />
+            </button>
+          }
+        />
 
         <section className="mt-6">
           <div className="grid grid-cols-7 gap-3 text-xs tracking-[0.25em] uppercase text-black/60">
@@ -171,12 +185,13 @@ export default function Home() {
             />
             <div className="mt-4 flex items-center gap-3">
               <button
-                className="rounded-full border border-black/20 px-4 py-2 text-xs uppercase tracking-[0.3em] transition hover:border-black/60 hover:bg-black hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40 disabled:opacity-50"
+                className="h-9 w-9 rounded-full border border-black/20 flex items-center justify-center text-black/70 transition hover:border-black/60 hover:bg-black hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40 disabled:opacity-50"
                 onClick={generatePlan}
                 disabled={loading || !text.trim()}
                 title={!text.trim() ? "Add a plan first" : "Generate plan"}
+                aria-label="Generate plan"
               >
-                {loading ? "Planning..." : "Generate plan"}
+                <SparklesIcon className="size-4" />
               </button>
               {msg && <div className="text-xs text-black/60">{msg}</div>}
             </div>
@@ -215,18 +230,19 @@ export default function Home() {
                       title="Delete task"
                       type="button"
                     >
-                      ✕
+                      <XMarkIcon className="size-4" />
                     </button>
                   </div>
                 ))}
 
                 <button
-                  className="mt-2 rounded-full border border-black/20 px-4 py-2 text-xs uppercase tracking-[0.3em] transition hover:border-black/60 hover:bg-black hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40 disabled:opacity-50"
+                  className="mt-2 h-9 w-9 rounded-full border border-black/20 flex items-center justify-center text-black/70 transition hover:border-black/60 hover:bg-black hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40 disabled:opacity-50"
                   onClick={confirmAndCreate}
                   disabled={!session || creating || draftTasks.length === 0}
                   title={!session ? "Sign in to create Google Calendar events" : ""}
+                  aria-label="Add to Google Calendar"
                 >
-                  {creating ? "Creating..." : "Add to Google Calendar"}
+                  <CalendarIcon className="size-4" />
                 </button>
 
                 {!session && (
@@ -240,19 +256,7 @@ export default function Home() {
         </section>
       </div>
 
-      <div className="fixed bottom-6 inset-x-0 flex justify-center z-20 pointer-events-auto">
-        <div className="rounded-full bg-white/90 border border-black/10 shadow-[0_12px_40px_rgba(0,0,0,0.08)] backdrop-blur px-1 py-1 flex items-center gap-1">
-          <Link
-            className="px-4 py-1.5 text-sm rounded-full text-black/70 transition hover:bg-black/5 hover:text-black"
-            href="/usage"
-          >
-            All
-          </Link>
-          <Link className="px-4 py-1.5 text-sm rounded-full bg-black text-white transition hover:bg-black/90" href="/">
-            Day
-          </Link>
-        </div>
-      </div>
+      <BottomBar active="day" />
     </main>
   );
 }
