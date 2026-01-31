@@ -1,166 +1,136 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowPathIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-  PauseIcon,
-  PlayIcon,
   PlusIcon,
   SunIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-import {
-  deleteRoutineAction,
-  getRoutineActions,
-  markTodayRoutineCompleted,
-  RoutineAction,
-  updateRoutineOrder,
-  upsertRoutineAction,
-} from "@/lib/morning-routine";
+import { useRoutineStore } from "@/lib/morning-routine-store";
 import BottomBar from "@/components/bottomBar";
 import PageHeader from "@/components/pageHeader";
-
-
-
-function formatSeconds(totalSeconds: number) {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
+import { toISODate } from "@/lib/utils";
+import WeekBar from "@/components/weekBar";
 
 export default function MorningRoutinePage() {
-  const [actions, setActions] = useState<RoutineAction[]>([]);
-  const [loading, setLoading] = useState(true);
   const [titleInput, setTitleInput] = useState("");
-  const [durationInput, setDurationInput] = useState("1");
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [remainingSeconds, setRemainingSeconds] = useState(0);
-  const [isRunning, setIsRunning] = useState(false);
+  const [runnerOpen, setRunnerOpen] = useState(false);
+  const [now, setNow] = useState(() => new Date());
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
 
-  const actionsRef = useRef(actions);
-  const indexRef = useRef(currentIndex);
+  const {
+    actions,
+    actionRecords,
+    completionMap,
+    loading,
+    addAction,
+    updateAction,
+    deleteAction,
+    reorderActions,
+    toggleActionCompletion,
+    markDayComplete,
+    refreshTodayRecords,
+  } = useRoutineStore();
 
+  const DEFAULT_ACTION_SECONDS = 5 * 60;
+
+  // Refresh records when tab becomes visible
   useEffect(() => {
-    actionsRef.current = actions;
-  }, [actions]);
+    if (typeof window === "undefined") return;
 
-  useEffect(() => {
-    indexRef.current = currentIndex;
-  }, [currentIndex]);
-
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      const loaded = await getRoutineActions();
-      if (!active) return;
-      setActions(loaded);
-      if (loaded.length > 0) {
-        setCurrentIndex(0);
-        setRemainingSeconds(loaded[0].duration_minutes * 60);
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === "visible") {
+        await refreshTodayRecords();
       }
-      setLoading(false);
-    })();
-    return () => {
-      active = false;
     };
-  }, []);
 
-  useEffect(() => {
-    if (!isRunning) return;
-    if (actionsRef.current.length === 0) return;
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [refreshTodayRecords]);
 
-    const timer = setInterval(() => {
-      setRemainingSeconds((prev) => {
-        if (prev > 1) return prev - 1;
+  // Computed values
+  const completedToday = completionMap[toISODate(new Date())] || false;
 
-        const list = actionsRef.current;
-        const idx = indexRef.current;
-        if (idx < list.length - 1) {
-          const nextIndex = idx + 1;
-          indexRef.current = nextIndex;
-          setCurrentIndex(nextIndex);
-          return list[nextIndex]?.duration_minutes * 60 || 0;
-        }
+  const currentActionId = useMemo(() => {
+    const firstIncomplete = actions.find((action) => !actionRecords[action.id]?.completed);
+    return firstIncomplete?.id ?? actions[0]?.id ?? null;
+  }, [actions, actionRecords]);
 
-        setIsRunning(false);
-        markTodayRoutineCompleted();
-        return 0;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [isRunning]);
-
-  const currentAction = actions[currentIndex];
-  const nextAction = actions[currentIndex + 1];
-
-  const totalMinutes = useMemo(
-    () => actions.reduce((sum, action) => sum + action.duration_minutes, 0),
-    [actions]
+  const currentIndex = useMemo(
+    () => actions.findIndex((action) => action.id === currentActionId),
+    [actions, currentActionId]
   );
 
-  function resetRoutine() {
-    setIsRunning(false);
-    setCurrentIndex(0);
-    setRemainingSeconds(actions[0]?.duration_minutes ? actions[0].duration_minutes * 60 : 0);
-  }
+  const currentAction = currentIndex >= 0 ? actions[currentIndex] : null;
 
-  async function addAction() {
-    const duration = Number(durationInput);
-    if (!titleInput.trim() || Number.isNaN(duration) || duration <= 0) return;
+  const upcomingActions = useMemo(() => {
+    if (!currentAction) return [];
+    return actions.slice(currentIndex + 1, currentIndex + 4);
+  }, [actions, currentAction, currentIndex]);
 
-    const action: RoutineAction = {
-      id: crypto.randomUUID(),
-      title: titleInput.trim(),
-      duration_minutes: duration,
-      position: actions.length,
-    };
+  // Timer effects
+  useEffect(() => {
+    if (!runnerOpen) return;
 
-    const next = [...actions, action];
-    setActions(next);
-    if (actions.length === 0) {
-      setCurrentIndex(0);
-      setRemainingSeconds(action.duration_minutes * 60);
+    setNow(new Date());
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [runnerOpen]);
+
+  useEffect(() => {
+    if (!runnerOpen || !currentAction) {
+      setRemainingSeconds(null);
+      return;
     }
+
+    setRemainingSeconds(DEFAULT_ACTION_SECONDS);
+    const interval = setInterval(() => {
+      setRemainingSeconds((prev) => (prev === null ? null : Math.max(prev - 1, 0)));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [runnerOpen, currentAction?.id]);
+
+  // Handlers
+  const handleAddAction = async () => {
+    if (!titleInput.trim()) return;
+    await addAction(titleInput);
     setTitleInput("");
-    setDurationInput("1");
-    await upsertRoutineAction(action);
-  }
+  };
 
-  async function saveAction(action: RoutineAction) {
-    await upsertRoutineAction(action);
-  }
+  const handleMoveAction = async (index: number, direction: number) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= actions.length) return;
+    await reorderActions(index, targetIndex);
+  };
 
-  async function removeAction(id: string) {
-    const next = actions.filter((action) => action.id !== id).map((action, index) => ({
-      ...action,
-      position: index,
-    }));
-    setActions(next);
-    await deleteRoutineAction(id);
-    await updateRoutineOrder(next);
-    if (currentIndex >= next.length) {
-      setCurrentIndex(Math.max(next.length - 1, 0));
+  const handleMoveToNext = async () => {
+    if (!currentAction) return;
+
+    await toggleActionCompletion(currentAction.id);
+
+    if (currentIndex >= actions.length - 1) {
+      await markDayComplete();
+      setRunnerOpen(false);
     }
-    if (!isRunning) {
-      setRemainingSeconds(next[0]?.duration_minutes ? next[0].duration_minutes * 60 : 0);
-    }
-  }
+  };
 
-  async function moveAction(index: number, direction: number) {
-    const next = [...actions];
-    const target = index + direction;
-    if (target < 0 || target >= next.length) return;
-
-    const [moved] = next.splice(index, 1);
-    next.splice(target, 0, moved);
-    const normalized = next.map((action, idx) => ({ ...action, position: idx }));
-    setActions(normalized);
-    await updateRoutineOrder(normalized);
-    if (currentIndex === index) setCurrentIndex(target);
-  }
+  // Utilities
+  const formatRemaining = (seconds: number | null) => {
+    if (seconds === null) return "--:--";
+    const minutes = Math.floor(seconds / 60)
+      .toString()
+      .padStart(2, "0");
+    const secs = Math.floor(seconds % 60)
+      .toString()
+      .padStart(2, "0");
+    return `${minutes}:${secs}`;
+  };
 
   return (
     <main className="min-h-screen relative overflow-hidden bg-[#f8f6f1] text-[#0c0c0c]">
@@ -172,8 +142,14 @@ export default function MorningRoutinePage() {
           eyebrow="Morning routine"
           title="Flow, focus, finish strong"
           icon={<SunIcon className="size-6" />}
-          right={<div className="text-xs uppercase tracking-[0.3em] text-black/50">{totalMinutes} min</div>}
+          right={
+            <div className="text-xs uppercase tracking-[0.3em] text-black/50">
+              {actions.length} actions
+            </div>
+          }
         />
+
+        <WeekBar statusMap={completionMap} />
 
         <section className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="rounded-3xl border border-black/10 bg-white/70 backdrop-blur px-6 py-6 shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
@@ -191,37 +167,31 @@ export default function MorningRoutinePage() {
                   className="rounded-2xl border border-black/10 bg-white/80 px-3 py-2 shadow-inner"
                 >
                   <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      className={`rounded-full border px-2 py-1 text-[10px] uppercase tracking-[0.2em] transition ${actionRecords[action.id]?.completed
+                        ? "border-black bg-black text-white"
+                        : "border-black/10 text-black/60 hover:border-black/60 hover:bg-black hover:text-white"
+                        }`}
+                      onClick={() => toggleActionCompletion(action.id)}
+                      aria-label="Toggle action completed"
+                      type="button"
+                    >
+                      {actionRecords[action.id]?.completed ? "Done" : "Do"}
+                    </button>
                     <input
                       className="flex-1 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-black/20 rounded-md px-2 py-1"
                       value={action.title}
                       onChange={(e) => {
-                        const next = [...actions];
-                        next[index] = { ...next[index], title: e.target.value };
-                        setActions(next);
+                        updateAction({ ...action, title: e.target.value });
                       }}
-                      onBlur={() => saveAction(actions[index])}
                       aria-label="Edit routine action title"
                     />
-                    <input
-                      className="w-20 bg-transparent text-sm text-right focus:outline-none focus:ring-2 focus:ring-black/20 rounded-md px-2 py-1"
-                      type="number"
-                      min={1}
-                      value={action.duration_minutes}
-                      onChange={(e) => {
-                        const next = [...actions];
-                        next[index] = {
-                          ...next[index],
-                          duration_minutes: Number(e.target.value),
-                        };
-                        setActions(next);
-                      }}
-                      onBlur={() => saveAction(actions[index])}
-                      aria-label="Edit routine action duration"
-                    />
-                    <div className="text-[10px] uppercase tracking-[0.2em] text-black/50">min</div>
+                    <div className="w-12 text-right text-[10px] uppercase tracking-[0.2em] text-black/50">
+                      {String(index + 1).padStart(2, "0")}
+                    </div>
                     <button
                       className="rounded-full border border-black/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-black/60 transition hover:border-black/60 hover:bg-black hover:text-white"
-                      onClick={() => moveAction(index, -1)}
+                      onClick={() => handleMoveAction(index, -1)}
                       aria-label="Move action up"
                       type="button"
                     >
@@ -229,7 +199,7 @@ export default function MorningRoutinePage() {
                     </button>
                     <button
                       className="rounded-full border border-black/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-black/60 transition hover:border-black/60 hover:bg-black hover:text-white"
-                      onClick={() => moveAction(index, 1)}
+                      onClick={() => handleMoveAction(index, 1)}
                       aria-label="Move action down"
                       type="button"
                     >
@@ -237,7 +207,7 @@ export default function MorningRoutinePage() {
                     </button>
                     <button
                       className="rounded-full border border-black/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-black/60 transition hover:border-black/60 hover:bg-black hover:text-white"
-                      onClick={() => removeAction(action.id)}
+                      onClick={() => deleteAction(action.id)}
                       aria-label="Delete action"
                       type="button"
                     >
@@ -262,18 +232,11 @@ export default function MorningRoutinePage() {
                   placeholder="e.g. Make bed"
                   value={titleInput}
                   onChange={(e) => setTitleInput(e.target.value)}
-                />
-                <input
-                  className="w-24 rounded-2xl border border-black/10 bg-white/80 px-3 py-2 text-sm text-right shadow-inner focus:outline-none focus:ring-2 focus:ring-black/20"
-                  type="number"
-                  min={1}
-                  value={durationInput}
-                  onChange={(e) => setDurationInput(e.target.value)}
-                  aria-label="Duration in minutes"
+                  onKeyDown={(e) => e.key === "Enter" && handleAddAction()}
                 />
                 <button
                   className="h-9 w-9 rounded-full border border-black/20 flex items-center justify-center text-black/70 transition hover:border-black/60 hover:bg-black hover:text-white"
-                  onClick={addAction}
+                  onClick={handleAddAction}
                   type="button"
                   aria-label="Add action"
                   title="Add action"
@@ -285,69 +248,116 @@ export default function MorningRoutinePage() {
           </div>
 
           <div className="rounded-3xl border border-black/10 bg-white/70 backdrop-blur px-6 py-6 shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
-            <div className="text-xs uppercase tracking-[0.3em] text-black/50">Timer flow</div>
-            <div className="mt-4 rounded-2xl border border-black/10 bg-white/80 px-4 py-4 shadow-inner">
-              <div className="text-[10px] uppercase tracking-[0.2em] text-black/50">Current task</div>
-              <div className="mt-2 text-lg font-semibold tracking-tight">
-                {currentAction ? currentAction.title : "No actions yet"}
-              </div>
-              <div className="mt-2 text-3xl font-semibold tracking-tight">
-                {formatSeconds(remainingSeconds)}
-              </div>
-              <div className="mt-4 text-[10px] uppercase tracking-[0.2em] text-black/50">Up next</div>
-              <div className="mt-1 text-sm text-black/70">
-                {nextAction ? `${nextAction.title} · ${nextAction.duration_minutes}m` : "You're done"}
-              </div>
-            </div>
-
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <button
-                className="h-9 w-9 rounded-full border border-black/20 flex items-center justify-center text-black/70 transition hover:border-black/60 hover:bg-black hover:text-white disabled:opacity-50"
-                onClick={() => {
-                  if (!actions.length) return;
-                  if (remainingSeconds === 0) {
-                    setCurrentIndex(0);
-                    setRemainingSeconds(actions[0].duration_minutes * 60);
-                  }
-                  setIsRunning(true);
-                }}
-                disabled={actions.length === 0 || isRunning}
-                type="button"
-                aria-label="Start routine"
-                title="Start routine"
-              >
-                <PlayIcon className="h-4 w-4" />
-              </button>
-              <button
-                className="h-9 w-9 rounded-full border border-black/20 flex items-center justify-center text-black/70 transition hover:border-black/60 hover:bg-black hover:text-white disabled:opacity-50"
-                onClick={() => setIsRunning(false)}
-                disabled={!isRunning}
-                type="button"
-                aria-label="Pause routine"
-                title="Pause routine"
-              >
-                <PauseIcon className="h-4 w-4" />
-              </button>
-              <button
-                className="h-9 w-9 rounded-full border border-black/20 flex items-center justify-center text-black/70 transition hover:border-black/60 hover:bg-black hover:text-white disabled:opacity-50"
-                onClick={resetRoutine}
-                disabled={actions.length === 0}
-                type="button"
-                aria-label="Reset routine"
-                title="Reset routine"
-              >
-                <ArrowPathIcon className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="mt-4 text-xs text-black/60">
-              Routine progress: {actions.length === 0 ? 0 : currentIndex + 1}/{actions.length || 0}
+            <div className="text-xs uppercase tracking-[0.3em] text-black/50">Routine control</div>
+            <div className="mt-6 rounded-2xl border border-black/10 bg-white/80 px-5 py-6 text-center shadow-inner">
+              {completedToday ? (
+                <div className="text-lg font-semibold tracking-tight">Today completed ✅</div>
+              ) : (
+                <button
+                  className="w-full rounded-2xl border border-black/20 bg-black px-6 py-6 text-xs uppercase tracking-[0.35em] text-white transition hover:border-black/60 hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={() => setRunnerOpen(true)}
+                  disabled={actions.length === 0}
+                  type="button"
+                >
+                  Start Morning Routine
+                </button>
+              )}
+              {!completedToday && actions.length === 0 && !loading && (
+                <div className="mt-3 text-xs text-black/50">
+                  Add at least one action to start your routine.
+                </div>
+              )}
             </div>
           </div>
         </section>
       </div>
 
       <BottomBar active="morning" />
+
+      {runnerOpen && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-[#f8f6f1]/90 backdrop-blur" />
+          <div className="relative z-10 mx-auto flex min-h-screen max-w-4xl flex-col px-6 py-8">
+            <div className="flex items-center justify-between">
+              <div className="text-xs uppercase tracking-[0.3em] text-black/50">
+                Morning runner
+              </div>
+              <button
+                className="rounded-full border border-black/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-black/60 transition hover:border-black/60 hover:bg-black hover:text-white"
+                onClick={() => setRunnerOpen(false)}
+                type="button"
+                aria-label="Close routine runner"
+                title="Close routine runner"
+              >
+                <XMarkIcon className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            <div className="mt-8 flex flex-1 flex-col">
+              <div className="rounded-3xl border border-black/10 bg-white/80 px-6 py-8 text-center shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
+                <div className="text-[10px] uppercase tracking-[0.3em] text-black/50">
+                  Local time
+                </div>
+                <div className="mt-3 text-5xl font-semibold tracking-tight">
+                  {now.toLocaleTimeString(undefined, {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </div>
+                <div className="mt-3 text-xs text-black/60">
+                  Step {actions.length === 0 ? 0 : Math.max(currentIndex + 1, 0)}/
+                  {actions.length}
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+                <div className="rounded-3xl border border-black/10 bg-white/80 px-5 py-5 shadow-inner">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-black/50">
+                    Current task
+                  </div>
+                  <div className="mt-3 text-2xl font-semibold tracking-tight">
+                    {currentAction ? currentAction.title : "All done"}
+                  </div>
+                  <div className="mt-3 text-sm text-black/60">
+                    Remaining time: {formatRemaining(remainingSeconds)}
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-black/10 bg-white/80 px-5 py-5 shadow-inner">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-black/50">
+                    Up next
+                  </div>
+                  <div className="mt-3 grid gap-2 text-sm text-black/70">
+                    {upcomingActions.length > 0 ? (
+                      upcomingActions.map((action, idx) => (
+                        <div key={action.id} className="flex items-center justify-between">
+                          <span>{action.title}</span>
+                          <span className="text-[10px] uppercase tracking-[0.2em] text-black/50">
+                            {String(currentIndex + idx + 2).padStart(2, "0")}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-black/50">No more actions.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 flex items-center justify-center">
+                <button
+                  className="rounded-full border border-black/20 px-6 py-3 text-xs uppercase tracking-[0.3em] text-black/70 transition hover:border-black/60 hover:bg-black hover:text-white disabled:opacity-50"
+                  onClick={handleMoveToNext}
+                  disabled={actions.length === 0 || !currentAction}
+                  type="button"
+                >
+                  Move to next
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

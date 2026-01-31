@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Squares2X2Icon } from "@heroicons/react/24/outline";
-import { getUsageMap, toISODate } from "@/lib/usage";
-import { getRoutineCompletionMap, setRoutineCompletion } from "@/lib/morning-routine";
+import { useMemo } from "react";
+import { Squares2X2Icon, FireIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
+import { toISODate } from "@/lib/utils";
+import { useRoutineStore } from "@/lib/morning-routine-store";
+import { useUsageStore } from "@/lib/usage-store";
 import BottomBar from "@/components/bottomBar";
 import PageHeader from "@/components/pageHeader";
-
-function daysInYear(year: number) {
-  return new Date(year + 1, 0, 0).getDate();
-}
+import RecordCard from "@/components/recordCard";
+import RecordDotGrid from "@/components/recordDotGrid";
 
 function dayOfYear(d: Date) {
   const start = new Date(d.getFullYear(), 0, 0);
@@ -18,21 +17,8 @@ function dayOfYear(d: Date) {
 }
 
 export default function UsagePage() {
-  const [usage, setUsage] = useState<Record<string, boolean>>({});
-  const [routineCompletion, setRoutineCompletionMap] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      const next = await getUsageMap();
-      const routine = await getRoutineCompletionMap();
-      if (active) setUsage(next);
-      if (active) setRoutineCompletionMap(routine);
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
+  const { usageMap } = useUsageStore();
+  const { completionMap } = useRoutineStore();
 
   const year = useMemo(() => new Date().getFullYear(), []);
   const totalDays = useMemo(() => 365, []);
@@ -51,13 +37,13 @@ export default function UsagePage() {
     });
   }, [totalDays, year]);
 
-  const routineStats = useMemo(() => {
-    const completedDays = Object.values(routineCompletion).filter(Boolean).length;
+  const planningStats = useMemo(() => {
+    const completedDays = Object.values(usageMap).filter(Boolean).length;
     let streak = 0;
     const cursor = new Date(todayStart);
     for (let i = 0; i < totalDays; i += 1) {
       const key = toISODate(cursor);
-      if (routineCompletion[key]) {
+      if (usageMap[key]) {
         streak += 1;
         cursor.setDate(cursor.getDate() - 1);
       } else {
@@ -65,7 +51,23 @@ export default function UsagePage() {
       }
     }
     return { completedDays, streak };
-  }, [routineCompletion, todayStart, totalDays]);
+  }, [usageMap, todayStart, totalDays]);
+
+  const routineStats = useMemo(() => {
+    const completedDays = Object.values(completionMap).filter(Boolean).length;
+    let streak = 0;
+    const cursor = new Date(todayStart);
+    for (let i = 0; i < totalDays; i += 1) {
+      const key = toISODate(cursor);
+      if (completionMap[key]) {
+        streak += 1;
+        cursor.setDate(cursor.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    return { completedDays, streak };
+  }, [completionMap, todayStart, totalDays]);
 
   return (
     <main className="min-h-screen relative overflow-hidden bg-[#f8f6f1] text-[#0c0c0c]">
@@ -80,84 +82,32 @@ export default function UsagePage() {
           right={<div className="text-xs uppercase tracking-[0.2em] text-black/50">{daysLeft} days left</div>}
         />
 
-        <div className="mt-6 grid grid-cols-30 gap-2 sm:gap-3 md:gap-3">
-          {dots.map(({ key, date }) => {
-            const filled = Boolean(usage[key]);
-            const day = new Date(date);
-            day.setHours(0, 0, 0, 0);
-            const isPast = day.getTime() < todayStart.getTime();
-            const isFuture = day.getTime() > todayStart.getTime();
-            return (
-              <div
-                key={key}
-                title={key}
-                className="h-3.5 w-3.5 flex items-center justify-center cursor-pointer"
-              >
-                {filled ? (
-                  <span className="h-3 w-3 rounded-full bg-black transition-colors hover:bg-black/80" />
-                ) : isPast ? (
-                  <span className="h-0.5 w-3 rounded-full bg-black/30 transition-colors hover:bg-black/50" />
-                ) : isFuture ? (
-                  <span className="h-2 w-2 rounded-full border border-black/20 bg-transparent transition-colors hover:border-black/40" />
-                ) : (
-                  <span className="h-0.5 w-3 rounded-full bg-black/30 transition-colors hover:bg-black/50" />
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <RecordCard
+          eyebrow="planning"
+          title="Daily planning"
+          right={
+            <>
+              <div className="flex items-center gap-1">{planningStats.streak} <FireIcon className="size-5" /></div>
+              <div className="mt-1 flex items-center gap-1">{planningStats.completedDays} <CheckCircleIcon className="size-5" /></div>
+            </>
+          }
+        >
+          <RecordDotGrid dots={dots} todayStart={todayStart} filledMap={usageMap} />
+        </RecordCard>
 
         <section className="mt-14">
-          <div className="rounded-3xl border border-black/10 bg-white/70 backdrop-blur px-6 py-6 shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-xs uppercase tracking-[0.3em] text-black/50">Morning routine</div>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight">Consistency tracker</h2>
-              </div>
-              <div className="text-right text-xs uppercase tracking-[0.25em] text-black/50">
-                <div>{routineStats.streak} day streak</div>
-                <div className="mt-1">{routineStats.completedDays} completed</div>
-              </div>
-            </div>
-
-            <div className="mt-6 grid grid-cols-30 gap-2 sm:gap-3 md:gap-3">
-              {dots.map(({ key, date }) => {
-                const filled = Boolean(routineCompletion[key]);
-                const day = new Date(date);
-                day.setHours(0, 0, 0, 0);
-                const isPast = day.getTime() < todayStart.getTime();
-                const isFuture = day.getTime() > todayStart.getTime();
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    title={key}
-                    onClick={async () => {
-                      const nextValue = !routineCompletion[key];
-                      setRoutineCompletionMap((prev) => ({ ...prev, [key]: nextValue }));
-                      await setRoutineCompletion(date, nextValue);
-                    }}
-                    className="h-3.5 w-3.5 flex items-center justify-center"
-                    aria-label={`Toggle morning routine ${key}`}
-                  >
-                    {filled ? (
-                      <span className="h-3 w-3 rounded-full bg-black transition-colors hover:bg-black/80" />
-                    ) : isPast ? (
-                      <span className="h-0.5 w-3 rounded-full bg-black/30 transition-colors hover:bg-black/50" />
-                    ) : isFuture ? (
-                      <span className="h-2 w-2 rounded-full border border-black/20 bg-transparent transition-colors hover:border-black/40" />
-                    ) : (
-                      <span className="h-0.5 w-3 rounded-full bg-black/30 transition-colors hover:bg-black/50" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-6 text-xs tracking-[0.2em] text-black/50 uppercase">
-              Tap any day to check off completion
-            </div>
-          </div>
+          <RecordCard
+            eyebrow="Morning routine"
+            title="Routine tracker"
+            right={
+              <>
+                <div className="flex items-center gap-1">{routineStats.streak} <FireIcon className="size-5" /></div>
+                <div className="mt-1 flex items-center gap-1">{routineStats.completedDays} <CheckCircleIcon className="size-5" /></div>
+              </>
+            }
+          >
+            <RecordDotGrid dots={dots} todayStart={todayStart} filledMap={completionMap} />
+          </RecordCard>
         </section>
       </div>
 

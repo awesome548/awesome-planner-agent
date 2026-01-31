@@ -9,9 +9,11 @@ import {
   UserCircleIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-import { getUsageMap, markTodayUsed, toISODate } from "@/lib/usage";
+import { useRoutineStore } from "@/lib/morning-routine-store";
+import { useUsageStore } from "@/lib/usage-store";
 import BottomBar from "@/components/bottomBar";
 import PageHeader from "@/components/pageHeader";
+import WeekBar from "@/components/weekBar";
 
 type Task = {
   title: string;
@@ -30,18 +32,13 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [msg, setMsg] = useState<string>("");
-  const [usage, setUsage] = useState<Record<string, boolean>>({});
+  const { usageMap, initialize: initializeUsage, markUsed } = useUsageStore();
+  const { initialize: initializeRoutine } = useRoutineStore();
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      const next = await getUsageMap();
-      if (active) setUsage(next);
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
+    initializeUsage();
+    initializeRoutine();
+  }, [initializeUsage, initializeRoutine]);
 
   const today = useMemo(() => new Date(), []);
   const todayLabel = useMemo(() => {
@@ -50,22 +47,6 @@ export default function Home() {
     const dd = String(today.getDate()).padStart(2, "0");
     return `${yyyy}.${mm}.${dd}`;
   }, [today]);
-  const todayStart = useMemo(() => {
-    const base = new Date(today);
-    base.setHours(0, 0, 0, 0);
-    return base;
-  }, [today]);
-
-  const weekDates = useMemo(() => {
-    const base = new Date();
-    const start = new Date(base);
-    start.setDate(base.getDate() - base.getDay());
-    return Array.from({ length: 7 }).map((_, i) => {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      return d;
-    });
-  }, []);
 
   async function generatePlan() {
     setLoading(true);
@@ -89,8 +70,7 @@ export default function Home() {
 
     setPlan(data.plan);
     setDraftTasks(data.plan?.tasks ?? []);
-    await markTodayUsed();
-    setUsage(await getUsageMap());
+    await markUsed();
   }
 
   async function confirmAndCreate() {
@@ -138,37 +118,7 @@ export default function Home() {
           }
         />
 
-        <section className="mt-6">
-          <div className="grid grid-cols-7 gap-3 text-xs tracking-[0.25em] uppercase text-black/60">
-            {weekDates.map((d) => (
-              <div key={d.toDateString()} className="text-center">
-                {d.toLocaleDateString("en-US", { weekday: "short" })}
-              </div>
-            ))}
-          </div>
-          <div className="mt-2 grid grid-cols-7 gap-3 place-items-center">
-            {weekDates.map((d) => {
-              const used = Boolean(usage[toISODate(d)]);
-              const day = new Date(d);
-              day.setHours(0, 0, 0, 0);
-              const isPast = day.getTime() < todayStart.getTime();
-              const isFuture = day.getTime() > todayStart.getTime();
-              return (
-                <span key={d.toDateString()} className="flex items-center justify-center h-4 w-4">
-                  {used ? (
-                    <span className="h-3 w-3 rounded-full bg-black" />
-                  ) : isPast ? (
-                    <span className="h-0.5 w-3 rounded-full bg-black/30" />
-                  ) : isFuture ? (
-                    <span className="h-2 w-2 rounded-full border border-black/20 bg-transparent" />
-                  ) : (
-                    <span className="h-0.5 w-3 rounded-full bg-black/30" />
-                  )}
-                </span>
-              );
-            })}
-          </div>
-        </section>
+        <WeekBar statusMap={usageMap} />
 
         <section className="mt-14 flex flex-col items-center text-center text-black/70">
           <div className="text-lg tracking-[0.2em] uppercase">Plan your day today</div>
