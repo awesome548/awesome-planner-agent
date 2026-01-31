@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Squares2X2Icon, FireIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
+import { Squares2X2Icon } from "@heroicons/react/24/outline";
+import { FireIcon, CheckCircleIcon } from "@heroicons/react/24/solid";
 import { toISODate } from "@/lib/utils";
 import { useRoutineStore } from "@/lib/morning-routine-store";
 import { useUsageStore } from "@/lib/usage-store";
@@ -82,20 +83,22 @@ export default function UsagePage() {
           right={<div className="text-xs uppercase tracking-[0.2em] text-black/50">{daysLeft} days left</div>}
         />
 
-        <RecordCard
-          eyebrow="planning"
-          title="Daily planning"
-          right={
-            <>
-              <div className="flex items-center gap-1">{planningStats.streak} <FireIcon className="size-5" /></div>
-              <div className="mt-1 flex items-center gap-1">{planningStats.completedDays} <CheckCircleIcon className="size-5" /></div>
-            </>
-          }
-        >
-          <RecordDotGrid dots={dots} todayStart={todayStart} filledMap={usageMap} />
-        </RecordCard>
+        <section className="mt-10">
+          <RecordCard
+            eyebrow="planning"
+            title="Daily planning"
+            right={
+              <>
+                <div className="flex items-center gap-1">{planningStats.streak} <FireIcon className="size-5" /></div>
+                <div className="mt-1 flex items-center gap-1">{planningStats.completedDays} <CheckCircleIcon className="size-5" /></div>
+              </>
+            }
+          >
+            <RecordDotGrid dots={dots} todayStart={todayStart} filledMap={usageMap} />
+          </RecordCard>
+        </section>
 
-        <section className="mt-14">
+        <section className="mt-10">
           <RecordCard
             eyebrow="Morning routine"
             title="Routine tracker"

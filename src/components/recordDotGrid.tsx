@@ -28,10 +28,10 @@ export default function RecordDotGrid({
               filled
                 ? "h-3 w-3 rounded-full bg-black transition-colors hover:bg-black/80"
                 : isPast
-                ? "h-0.5 w-3 rounded-full bg-black/30 transition-colors hover:bg-black/50"
-                : isFuture
-                ? "h-2 w-2 rounded-full border border-black/20 bg-transparent transition-colors hover:border-black/40"
-                : "h-0.5 w-3 rounded-full bg-black/30 transition-colors hover:bg-black/50"
+                  ? "h-0.5 w-3 rounded-full bg-black/30 transition-colors hover:bg-black/50"
+                  : isFuture
+                    ? "h-1 w-1 rounded-full border-black/20 bg-black/20 transition-colors hover:border-black/40"
+                    : "h-0.5 w-3 rounded-full bg-black/30 transition-colors hover:bg-black/50"
             }
           />
         );

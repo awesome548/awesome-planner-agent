@@ -5,10 +5,10 @@ import { useSession, signIn, signOut } from "next-auth/react";
 import {
   CalendarDaysIcon,
   CalendarIcon,
-  SparklesIcon,
   UserCircleIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+import { SparklesIcon } from "@heroicons/react/24/solid";
 import { useRoutineStore } from "@/lib/morning-routine-store";
 import { useUsageStore } from "@/lib/usage-store";
 import BottomBar from "@/components/bottomBar";
