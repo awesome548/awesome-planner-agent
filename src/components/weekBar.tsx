@@ -4,9 +4,20 @@ import { toISODate } from "@/lib/utils";
 type WeekBarProps = {
   statusMap: Record<string, boolean>;
   className?: string;
+  usedClassName?: string;
+  pastClassName?: string;
+  futureClassName?: string;
+  fallbackClassName?: string;
 };
 
-export default function WeekBar({ statusMap, className = "" }: WeekBarProps) {
+export default function WeekBar({
+  statusMap,
+  className = "",
+  usedClassName = "h-3 w-3 rounded-full bg-black",
+  pastClassName = "h-0.5 w-3 rounded-full bg-black/30",
+  futureClassName = "h-2 w-2 rounded-full border border-black/20 bg-transparent",
+  fallbackClassName = "h-0.5 w-3 rounded-full bg-black/30",
+}: WeekBarProps) {
   const todayStart = useMemo(() => {
     const base = new Date();
     base.setHours(0, 0, 0, 0);
@@ -43,13 +54,13 @@ export default function WeekBar({ statusMap, className = "" }: WeekBarProps) {
           return (
             <span key={d.toDateString()} className="flex items-center justify-center h-4 w-4">
               {used ? (
-                <span className="h-3 w-3 rounded-full bg-black" />
+                <span className={usedClassName} />
               ) : isPast ? (
-                <span className="h-0.5 w-3 rounded-full bg-black/30" />
+                <span className={pastClassName} />
               ) : isFuture ? (
-                <span className="h-2 w-2 rounded-full border border-black/20 bg-transparent" />
+                <span className={futureClassName} />
               ) : (
-                <span className="h-0.5 w-3 rounded-full bg-black/30" />
+                <span className={fallbackClassName} />
               )}
             </span>
           );

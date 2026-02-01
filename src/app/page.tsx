@@ -105,7 +105,7 @@ export default function Home() {
         <PageHeader
           eyebrow="Day planner"
           title={todayLabel}
-          icon={<CalendarDaysIcon className="size-6" />}
+          icon={<CalendarDaysIcon className="size-6 text-orange-500" />}
           right={
             <button
               className="h-9 w-9 rounded-full border border-black/20 flex items-center justify-center text-black/70 transition hover:border-black/60 hover:bg-black hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40"
@@ -118,7 +118,13 @@ export default function Home() {
           }
         />
 
-        <WeekBar statusMap={usageMap} />
+        <WeekBar
+          statusMap={usageMap}
+          usedClassName="h-3 w-3 rounded-full bg-orange-500"
+          pastClassName="h-0.5 w-3 rounded-full bg-orange-200"
+          futureClassName="h-2 w-2 rounded-full border border-orange-300 bg-transparent"
+          fallbackClassName="h-0.5 w-3 rounded-full bg-orange-200"
+        />
 
         <section className="mt-14 flex flex-col items-center text-center text-black/70">
           <div className="text-lg tracking-[0.2em] uppercase">Plan your day today</div>
@@ -135,7 +141,7 @@ export default function Home() {
             />
             <div className="mt-4 flex items-center gap-3">
               <button
-                className="h-9 w-9 rounded-full border border-black/20 flex items-center justify-center text-black/70 transition hover:border-black/60 hover:bg-black hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40 disabled:opacity-50"
+                className="h-9 w-9 rounded-full border border-orange-300 flex items-center justify-center text-orange-500 transition hover:border-orange-400 hover:bg-orange-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-200 disabled:opacity-50"
                 onClick={generatePlan}
                 disabled={loading || !text.trim()}
                 title={!text.trim() ? "Add a plan first" : "Generate plan"}
@@ -186,7 +192,7 @@ export default function Home() {
                 ))}
 
                 <button
-                  className="mt-2 h-9 w-9 rounded-full border border-black/20 flex items-center justify-center text-black/70 transition hover:border-black/60 hover:bg-black hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40 disabled:opacity-50"
+                  className="mt-2 h-9 w-9 rounded-full border border-orange-300 flex items-center justify-center text-orange-500 transition hover:border-orange-400 hover:bg-orange-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-200 disabled:opacity-50"
                   onClick={confirmAndCreate}
                   disabled={!session || creating || draftTasks.length === 0}
                   title={!session ? "Sign in to create Google Calendar events" : ""}

@@ -151,7 +151,13 @@ export default function MorningRoutinePage() {
           }
         />
 
-        <WeekBar statusMap={completionMap} />
+        <WeekBar
+          statusMap={completionMap}
+          usedClassName="h-3 w-3 rounded-full bg-sky-400"
+          pastClassName="h-0.5 w-3 rounded-full bg-sky-200"
+          futureClassName="h-2 w-2 rounded-full border border-sky-300 bg-transparent"
+          fallbackClassName="h-0.5 w-3 rounded-full bg-sky-200"
+        />
 
         {/* Routine Manager */}
         <section className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
@@ -295,7 +301,7 @@ export default function MorningRoutinePage() {
                 <div className="text-lg font-semibold tracking-tight">Today completed ✅</div>
               ) : (
                 <button
-                  className="w-full rounded-2xl border border-black/20 bg-black px-6 py-6 text-xs uppercase tracking-[0.35em] text-white transition hover:border-black/60 hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-2xl border border-sky-300 bg-sky-400 px-6 py-6 text-xs uppercase tracking-[0.35em] text-white transition hover:border-sky-400 hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={() => setRunnerOpen(true)}
                   disabled={actions.length === 0}
                   type="button"

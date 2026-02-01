@@ -89,12 +89,24 @@ export default function UsagePage() {
             title="Daily planning"
             right={
               <>
-                <div className="flex items-center gap-1">{planningStats.streak} <FireIcon className="size-5" /></div>
-                <div className="mt-1 flex items-center gap-1">{planningStats.completedDays} <CheckCircleIcon className="size-5" /></div>
+                <div className="flex items-center gap-1">
+                  {planningStats.streak} <FireIcon className="size-5 text-orange-500" />
+                </div>
+                <div className="mt-1 flex items-center gap-1">
+                  {planningStats.completedDays} <CheckCircleIcon className="size-5 text-orange-500" />
+                </div>
               </>
             }
           >
-            <RecordDotGrid dots={dots} todayStart={todayStart} filledMap={usageMap} />
+            <RecordDotGrid
+              dots={dots}
+              todayStart={todayStart}
+              filledMap={usageMap}
+              filledClassName="h-3 w-3 rounded-full bg-orange-500 transition-colors hover:bg-orange-400"
+              pastClassName="h-0.5 w-3 rounded-full bg-orange-200 transition-colors hover:bg-orange-300"
+              futureClassName="h-1 w-1 rounded-full border-orange-300 bg-orange-100 transition-colors hover:border-orange-400"
+              fallbackClassName="h-0.5 w-3 rounded-full bg-orange-200 transition-colors hover:bg-orange-300"
+            />
           </RecordCard>
         </section>
 
@@ -104,12 +116,24 @@ export default function UsagePage() {
             title="Routine tracker"
             right={
               <>
-                <div className="flex items-center gap-1">{routineStats.streak} <FireIcon className="size-5" /></div>
-                <div className="mt-1 flex items-center gap-1">{routineStats.completedDays} <CheckCircleIcon className="size-5" /></div>
+                <div className="flex items-center gap-1">
+                  {routineStats.streak} <FireIcon className="size-5 text-sky-400" />
+                </div>
+                <div className="mt-1 flex items-center gap-1">
+                  {routineStats.completedDays} <CheckCircleIcon className="size-5 text-sky-400" />
+                </div>
               </>
             }
           >
-            <RecordDotGrid dots={dots} todayStart={todayStart} filledMap={completionMap} />
+            <RecordDotGrid
+              dots={dots}
+              todayStart={todayStart}
+              filledMap={completionMap}
+              filledClassName="h-3 w-3 rounded-full bg-sky-400 transition-colors hover:bg-sky-300"
+              pastClassName="h-0.5 w-3 rounded-full bg-sky-200 transition-colors hover:bg-sky-300"
+              futureClassName="h-1 w-1 rounded-full border-sky-300 bg-sky-100 transition-colors hover:border-sky-400"
+              fallbackClassName="h-0.5 w-3 rounded-full bg-sky-200 transition-colors hover:bg-sky-300"
+            />
           </RecordCard>
         </section>
       </div>

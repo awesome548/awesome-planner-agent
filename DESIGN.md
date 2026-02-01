@@ -21,7 +21,9 @@ This document defines the visual system for pages and components in this app. Fo
 - Hover border: `rgba(0,0,0,0.40)`
 
 **Accent**
-- Solid black for primary actions
+- Solid black for default primary actions
+- Day planning accent: orange (Tailwind `orange-500/400/300/200/100`)
+- Morning routine accent: sky blue (Tailwind `sky-500/400/300/200/100`)
 - White overlays for glass panels: `rgba(255,255,255,0.70-0.90)`
 
 ## 3) Background treatment
@@ -63,6 +65,9 @@ Use a "glass" card for primary content:
 - `rounded-full border border-black/20 px-4 py-2 text-xs uppercase tracking-[0.3em]`
 - Hover: `hover:border-black/60 hover:bg-black hover:text-white`
 - Focus: `focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40`
+- Accent variants are allowed only for section-specific CTAs:
+  - Planning: orange border/background + subtle orange hover
+  - Morning: sky border/background + subtle sky hover
 
 **Secondary pill button**
 - `rounded-full border border-black/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em]`
@@ -83,9 +88,9 @@ Use a "glass" card for primary content:
 - Prefer icons over text for repeated actions or utility controls.
 - Keep icon stroke/weight consistent; avoid complex or filled multi-tone icons.
 - States:
-  - Filled day: `bg-black`
-  - Past day: `bg-black/30` or thin line
-  - Future day: `border border-black/20` with transparent fill
+  - Filled day: `bg-black` (or section accent for planning/morning)
+  - Past day: `bg-black/30` or thin line (or a lighter accent tone)
+  - Future day: `border border-black/20` with transparent fill (or accent border)
 
 ## 10) Motion
 - Keep to small transitions only:
@@ -102,8 +107,9 @@ Use a "glass" card for primary content:
 - Keep UI quiet, minimal, and high-contrast.
 - Use uppercase tracking for labels and nav.
 - Reuse the glass card and pill patterns.
+- Use orange accents for Day planning and sky accents for Morning routine.
 
 **Don’t**
-- Introduce saturated colors.
+- Introduce extra saturated colors beyond the two section accents.
 - Add heavy shadows or neon effects.
 - Use default blue links or underlines.

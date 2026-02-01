@@ -7,12 +7,20 @@ type RecordDotGridProps = {
   dots: RecordDot[];
   todayStart: Date;
   filledMap: Record<string, boolean>;
+  filledClassName?: string;
+  pastClassName?: string;
+  futureClassName?: string;
+  fallbackClassName?: string;
 };
 
 export default function RecordDotGrid({
   dots,
   todayStart,
   filledMap,
+  filledClassName = "h-3 w-3 rounded-full bg-black transition-colors hover:bg-black/80",
+  pastClassName = "h-0.5 w-3 rounded-full bg-black/30 transition-colors hover:bg-black/50",
+  futureClassName = "h-1 w-1 rounded-full border-black/20 bg-black/20 transition-colors hover:border-black/40",
+  fallbackClassName = "h-0.5 w-3 rounded-full bg-black/30 transition-colors hover:bg-black/50",
 }: RecordDotGridProps) {
   return (
     <div className="grid grid-cols-30 gap-2 sm:gap-3 md:gap-3">
@@ -26,12 +34,12 @@ export default function RecordDotGrid({
           <span
             className={
               filled
-                ? "h-3 w-3 rounded-full bg-black transition-colors hover:bg-black/80"
+                ? filledClassName
                 : isPast
-                  ? "h-0.5 w-3 rounded-full bg-black/30 transition-colors hover:bg-black/50"
+                  ? pastClassName
                   : isFuture
-                    ? "h-1 w-1 rounded-full border-black/20 bg-black/20 transition-colors hover:border-black/40"
-                    : "h-0.5 w-3 rounded-full bg-black/30 transition-colors hover:bg-black/50"
+                    ? futureClassName
+                    : fallbackClassName
             }
           />
         );

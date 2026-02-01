@@ -5,6 +5,8 @@ A minimal planner that turns plain-language tasks into a daily schedule and can 
 ## Features
 - Generate a structured plan from freeform text
 - Preview and edit tasks before creating events
+- Morning routine manager with runner mode
+- Usage tracking for daily planning and routines
 - Optional integrations with Google Calendar, Notion, and Supabase
 
 ## Tech
@@ -12,6 +14,7 @@ A minimal planner that turns plain-language tasks into a daily schedule and can 
 - NextAuth (Google OAuth)
 - OpenAI SDK
 - Supabase (usage tracking)
+- Tailwind CSS
 
 ## Setup
 1) Install dependencies
