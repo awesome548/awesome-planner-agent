@@ -49,6 +49,10 @@ export default function Home() {
   }, [today]);
 
   async function generatePlan() {
+    if (!session) {
+      setMsg("Sign in to generate a plan");
+      return;
+    }
     setLoading(true);
     setMsg("");
     setPlan(null);
@@ -105,7 +109,7 @@ export default function Home() {
         <PageHeader
           eyebrow="Day planner"
           title={todayLabel}
-          icon={<CalendarDaysIcon className="size-6 text-orange-500" />}
+          icon={<CalendarDaysIcon className="size-6 text-secondary" />}
           right={
             <button
               className="h-9 w-9 rounded-full border border-black/20 flex items-center justify-center text-black/70 transition hover:border-black/60 hover:bg-black hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40"
@@ -120,10 +124,8 @@ export default function Home() {
 
         <WeekBar
           statusMap={usageMap}
-          usedClassName="h-3 w-3 rounded-full bg-orange-500"
-          pastClassName="h-0.5 w-3 rounded-full bg-orange-200"
-          futureClassName="h-2 w-2 rounded-full border border-orange-300 bg-transparent"
-          fallbackClassName="h-0.5 w-3 rounded-full bg-orange-200"
+          usedClassName="h-3 w-3 rounded-full bg-secondary"
+          pastClassName="h-0.5 w-3 rounded-full bg-secondary/40"
         />
 
         <section className="mt-14 flex flex-col items-center text-center text-black/70">

@@ -90,10 +90,10 @@ export default function UsagePage() {
             right={
               <>
                 <div className="flex items-center gap-1">
-                  {planningStats.streak} <FireIcon className="size-5 text-orange-500" />
+                  {planningStats.streak} <FireIcon className="size-5 text-primary" />
                 </div>
                 <div className="mt-1 flex items-center gap-1">
-                  {planningStats.completedDays} <CheckCircleIcon className="size-5 text-orange-500" />
+                  {planningStats.completedDays} <CheckCircleIcon className="size-5 text-primary" />
                 </div>
               </>
             }
@@ -102,10 +102,8 @@ export default function UsagePage() {
               dots={dots}
               todayStart={todayStart}
               filledMap={usageMap}
-              filledClassName="h-3 w-3 rounded-full bg-orange-500 transition-colors hover:bg-orange-400"
-              pastClassName="h-0.5 w-3 rounded-full bg-orange-200 transition-colors hover:bg-orange-300"
-              futureClassName="h-1 w-1 rounded-full border-orange-300 bg-orange-100 transition-colors hover:border-orange-400"
-              fallbackClassName="h-0.5 w-3 rounded-full bg-orange-200 transition-colors hover:bg-orange-300"
+              filledClassName="h-3 w-3 rounded-full bg-primary transition-colors hover:bg-primary/80"
+              pastClassName="h-0.5 w-3 rounded-full bg-primary/40 transition-colors hover:bg-primary/55"
             />
           </RecordCard>
         </section>
@@ -117,10 +115,10 @@ export default function UsagePage() {
             right={
               <>
                 <div className="flex items-center gap-1">
-                  {routineStats.streak} <FireIcon className="size-5 text-sky-400" />
+                  {routineStats.streak} <FireIcon className="size-5 text-secondary" />
                 </div>
                 <div className="mt-1 flex items-center gap-1">
-                  {routineStats.completedDays} <CheckCircleIcon className="size-5 text-sky-400" />
+                  {routineStats.completedDays} <CheckCircleIcon className="size-5 text-secondary" />
                 </div>
               </>
             }
@@ -129,10 +127,8 @@ export default function UsagePage() {
               dots={dots}
               todayStart={todayStart}
               filledMap={completionMap}
-              filledClassName="h-3 w-3 rounded-full bg-sky-400 transition-colors hover:bg-sky-300"
-              pastClassName="h-0.5 w-3 rounded-full bg-sky-200 transition-colors hover:bg-sky-300"
-              futureClassName="h-1 w-1 rounded-full border-sky-300 bg-sky-100 transition-colors hover:border-sky-400"
-              fallbackClassName="h-0.5 w-3 rounded-full bg-sky-200 transition-colors hover:bg-sky-300"
+              filledClassName="h-3 w-3 rounded-full bg-secondary transition-colors hover:bg-secondary/80"
+              pastClassName="h-0.5 w-3 rounded-full bg-secondary/40 transition-colors hover:bg-secondary/55"
             />
           </RecordCard>
         </section>

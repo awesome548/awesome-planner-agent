@@ -143,7 +143,7 @@ export default function MorningRoutinePage() {
         <PageHeader
           eyebrow="Morning routine"
           title="Flow, focus, finish strong"
-          icon={<SunIcon className="size-6" />}
+          icon={<SunIcon className="size-6 text-primary" />}
           right={
             <div className="text-xs uppercase tracking-[0.3em] text-black/50">
               {actions.length} actions
@@ -153,10 +153,8 @@ export default function MorningRoutinePage() {
 
         <WeekBar
           statusMap={completionMap}
-          usedClassName="h-3 w-3 rounded-full bg-sky-400"
-          pastClassName="h-0.5 w-3 rounded-full bg-sky-200"
-          futureClassName="h-2 w-2 rounded-full border border-sky-300 bg-transparent"
-          fallbackClassName="h-0.5 w-3 rounded-full bg-sky-200"
+          usedClassName="h-3 w-3 rounded-full bg-primary"
+          pastClassName="h-0.5 w-3 rounded-full bg-primary/40"
         />
 
         {/* Routine Manager */}
@@ -278,11 +276,10 @@ export default function MorningRoutinePage() {
                 </button>
               )}
               <button
-                className={`flex items-center gap-2 rounded-full border px-4 py-2 text-[10px] uppercase tracking-[0.25em] transition ${
-                  managerOpen
-                    ? "border-black bg-black text-white"
-                    : "border-black/20 text-black/70 hover:border-black/60 hover:bg-black hover:text-white"
-                }`}
+                className={`flex items-center gap-2 rounded-full border px-4 py-2 text-[10px] uppercase tracking-[0.25em] transition ${managerOpen
+                  ? "border-black bg-black text-white"
+                  : "border-black/20 text-black/70 hover:border-black/60 hover:bg-black hover:text-white"
+                  }`}
                 onClick={() => setManagerOpen((prev) => !prev)}
                 type="button"
                 aria-label={managerOpen ? "Close routine manager" : "Edit routine manager"}

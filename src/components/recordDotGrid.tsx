@@ -19,8 +19,8 @@ export default function RecordDotGrid({
   filledMap,
   filledClassName = "h-3 w-3 rounded-full bg-black transition-colors hover:bg-black/80",
   pastClassName = "h-0.5 w-3 rounded-full bg-black/30 transition-colors hover:bg-black/50",
-  futureClassName = "h-1 w-1 rounded-full border-black/20 bg-black/20 transition-colors hover:border-black/40",
-  fallbackClassName = "h-0.5 w-3 rounded-full bg-black/30 transition-colors hover:bg-black/50",
+  futureClassName = "h-1 w-1 rounded-full bg-zinc-200 transition-colors hover:bg-zinc-300",
+  fallbackClassName = "h-0.5 w-3 rounded-full bg-zinc-400 transition-colors hover:bg-zinc-500",
 }: RecordDotGridProps) {
   return (
     <div className="grid grid-cols-30 gap-2 sm:gap-3 md:gap-3">

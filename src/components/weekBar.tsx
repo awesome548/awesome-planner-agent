@@ -15,8 +15,8 @@ export default function WeekBar({
   className = "",
   usedClassName = "h-3 w-3 rounded-full bg-black",
   pastClassName = "h-0.5 w-3 rounded-full bg-black/30",
-  futureClassName = "h-2 w-2 rounded-full border border-black/20 bg-transparent",
-  fallbackClassName = "h-0.5 w-3 rounded-full bg-black/30",
+  futureClassName = "h-2 w-2 rounded-full bg-zinc-200 transition-colors hover:border-zinc-500",
+  fallbackClassName = "h-0.5 w-3 rounded-full bg-zinc-400 transition-colors hover:bg-zinc-500",
 }: WeekBarProps) {
   const todayStart = useMemo(() => {
     const base = new Date();
