@@ -14,6 +14,32 @@ type InsertEventResult = {
   error?: string;
 };
 
+type ListEventsInput = {
+  accessToken: string;
+  timeMin: string;
+  timeMax: string;
+  timeZone: string;
+};
+
+export type CalendarEvent = {
+  id?: string;
+  summary?: string;
+  start?: {
+    dateTime?: string;
+    date?: string;
+  };
+  end?: {
+    dateTime?: string;
+    date?: string;
+  };
+};
+
+type ListEventsResult = {
+  ok: boolean;
+  events?: CalendarEvent[];
+  error?: string;
+};
+
 const GOOGLE_CALENDAR_EVENTS_ENDPOINT =
   "https://www.googleapis.com/calendar/v3/calendars/primary/events";
 
@@ -34,6 +60,57 @@ function addMinutesToDateTime(date: string, time: string, minutes: number) {
   ].join(":");
 
   return { endDate, endTime };
+}
+
+function buildEventsListUrl({
+  timeMin,
+  timeMax,
+  timeZone,
+}: Pick<ListEventsInput, "timeMin" | "timeMax" | "timeZone">) {
+  const params = new URLSearchParams({
+    singleEvents: "true",
+    orderBy: "startTime",
+    timeMin,
+    timeMax,
+    timeZone,
+  });
+  return `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}?${params.toString()}`;
+}
+
+export async function listCalendarEvents({
+  accessToken,
+  timeMin,
+  timeMax,
+  timeZone,
+}: ListEventsInput): Promise<ListEventsResult> {
+  const url = buildEventsListUrl({ timeMin, timeMax, timeZone });
+
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!res.ok) {
+      let errorMessage = `Google Calendar error (${res.status})`;
+      try {
+        const body = await res.json();
+        if (body?.error?.message) {
+          errorMessage = body.error.message;
+        }
+      } catch {
+        // ignore JSON parsing errors
+      }
+      return { ok: false, error: errorMessage };
+    }
+
+    const data = await res.json();
+    const events = Array.isArray(data?.items) ? (data.items as CalendarEvent[]) : [];
+    return { ok: true, events };
+  } catch (err: any) {
+    return { ok: false, error: err?.message ?? "Failed to reach Google Calendar API" };
+  }
 }
 
 export async function insertCalendarEvent({

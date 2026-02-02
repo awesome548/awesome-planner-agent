@@ -1,8 +1,21 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { z } from "zod";
 import { authOptions } from "@/auth";
+import {
+  findConflicts,
+  getDayBoundsUtc,
+  getLocalDateString,
+  isValidTimeZone,
+  toBusyIntervals,
+} from "@/lib/calendar";
+import { insertCalendarEvent, listCalendarEvents } from "@/lib/google";
 import { PlanSchema } from "@/lib/schemas";
-import { insertCalendarEvent } from "@/lib/google";
+
+const CreateCalendarSchema = z.object({
+  plan: PlanSchema,
+  timeZone: z.string().trim().min(1),
+});
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -19,23 +32,61 @@ export async function POST(req: Request) {
   }
 
   try {
-    const body = await req.json();
-    const parsedPlan = PlanSchema.safeParse(body?.plan);
-    if (!parsedPlan.success) {
-      return NextResponse.json({ ok: false, error: "Invalid plan payload" }, { status: 400 });
+    const parsedBody = CreateCalendarSchema.safeParse(await req.json());
+    if (!parsedBody.success) {
+      return NextResponse.json({ ok: false, error: "Invalid request" }, { status: 400 });
     }
 
-    const timeZone =
-      typeof body?.timeZone === "string" && body.timeZone.trim()
-        ? body.timeZone.trim()
-        : "UTC";
-
-    const results = [];
-    for (const task of parsedPlan.data.tasks) {
-      // Sequential insert keeps ordering predictable and avoids quota spikes.
-      const result = await insertCalendarEvent({ task, accessToken, timeZone });
-      results.push(result);
+    const timeZone = parsedBody.data.timeZone;
+    if (!isValidTimeZone(timeZone)) {
+      return NextResponse.json({ ok: false, error: "Invalid time zone" }, { status: 400 });
     }
+    const today = getLocalDateString(timeZone);
+    const tasks = parsedBody.data.plan.tasks;
+    const invalidTask = tasks.find((task) => task.date !== today);
+    if (invalidTask) {
+      return NextResponse.json(
+        { ok: false, error: `Tasks must be scheduled for ${today}` },
+        { status: 400 }
+      );
+    }
+
+    const dayBounds = getDayBoundsUtc(today, timeZone);
+    const eventsResult = await listCalendarEvents({
+      accessToken,
+      timeMin: dayBounds.timeMin,
+      timeMax: dayBounds.timeMax,
+      timeZone,
+    });
+
+    if (!eventsResult.ok) {
+      return NextResponse.json(
+        { ok: false, error: eventsResult.error ?? "Failed to load calendar events" },
+        { status: 502 }
+      );
+    }
+
+    const busyIntervals = toBusyIntervals(eventsResult.events ?? [], timeZone);
+    const conflicts = findConflicts(tasks, busyIntervals, timeZone);
+    if (conflicts.length > 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Draft tasks overlap existing calendar events",
+          conflicts,
+        },
+        { status: 409 }
+      );
+    }
+
+    const results = await tasks.reduce(
+      async (accPromise, task) => {
+        const acc = await accPromise;
+        const result = await insertCalendarEvent({ task, accessToken, timeZone });
+        return [...acc, result];
+      },
+      Promise.resolve([] as Awaited<ReturnType<typeof insertCalendarEvent>>[])
+    );
 
     const createdCount = results.filter((r) => r.ok).length;
     const errors = results.filter((r) => !r.ok).map((r) => r.error ?? "Unknown error");
