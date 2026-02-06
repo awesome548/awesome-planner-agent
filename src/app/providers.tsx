@@ -3,6 +3,7 @@
 import { SessionProvider } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import StoreInitializer from "@/components/storeInitializer";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -18,6 +19,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <SessionProvider>
+      <StoreInitializer />
       <div className="page-frame">
         <div
           aria-hidden="true"

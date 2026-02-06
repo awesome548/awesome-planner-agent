@@ -97,6 +97,16 @@ Use a "glass" card for primary content:
   - `transition` on hover states.
 - Avoid large animated effects or heavy motion.
 
+**Long-press button (intentional actions)**
+- Used for destructive or irreversible actions (e.g. morning runner "Move to next").
+- Hold for 2 seconds to activate. A black fill overlay scales left-to-right via `scaleX` driven by `requestAnimationFrame`.
+- Visual states:
+  - Default: `border-black/20 text-black/70`
+  - Holding: `border-black/60 text-white` with `bg-black origin-left` fill
+  - Released early: fill resets instantly to 0, no action fires
+- Uses `onPointerDown` / `onPointerUp` / `onPointerLeave` / `onPointerCancel` (no `onClick`).
+- Always include `aria-label` describing the hold requirement.
+
 ## 11) Accessibility
 - Use `focus-visible` rings for all interactive elements.
 - Maintain contrast: black text on off-white canvas; white text on black buttons.

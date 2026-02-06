@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDownIcon,
   ChevronUpIcon,
@@ -15,12 +15,17 @@ import PageHeader from "@/components/pageHeader";
 import { toISODate } from "@/lib/utils";
 import WeekBar from "@/components/weekBar";
 
+const HOLD_DURATION_MS = 2000;
+
 export default function MorningRoutinePage() {
   const [titleInput, setTitleInput] = useState("");
   const [runnerOpen, setRunnerOpen] = useState(false);
   const [managerOpen, setManagerOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
+  const [holdProgress, setHoldProgress] = useState(0);
+  const holdStartRef = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   const {
     actions,
@@ -111,7 +116,7 @@ export default function MorningRoutinePage() {
     await reorderActions(index, targetIndex);
   };
 
-  const handleMoveToNext = async () => {
+  const handleMoveToNext = useCallback(async () => {
     if (!currentAction) return;
 
     await toggleActionCompletion(currentAction.id);
@@ -120,7 +125,58 @@ export default function MorningRoutinePage() {
       await markDayComplete();
       setRunnerOpen(false);
     }
-  };
+  }, [currentAction, currentIndex, actions.length, toggleActionCompletion, markDayComplete]);
+
+  const handleMoveToNextRef = useRef(handleMoveToNext);
+  useEffect(() => {
+    handleMoveToNextRef.current = handleMoveToNext;
+  }, [handleMoveToNext]);
+
+  const cancelHold = useCallback(() => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    holdStartRef.current = null;
+    setHoldProgress(0);
+  }, []);
+
+  const handleHoldStart = useCallback(() => {
+    if (actions.length === 0 || !currentAction) return;
+
+    holdStartRef.current = Date.now();
+
+    const tick = () => {
+      const start = holdStartRef.current;
+      if (start === null) return;
+
+      const elapsed = Date.now() - start;
+      const progress = Math.min((elapsed / HOLD_DURATION_MS) * 100, 100);
+      setHoldProgress(progress);
+
+      if (progress >= 100) {
+        holdStartRef.current = null;
+        rafRef.current = null;
+        setHoldProgress(0);
+        handleMoveToNextRef.current();
+        return;
+      }
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+  }, [actions.length, currentAction]);
+
+  useEffect(() => {
+    if (!runnerOpen) {
+      cancelHold();
+    }
+  }, [runnerOpen, cancelHold]);
+
+  useEffect(() => {
+    return () => cancelHold();
+  }, [cancelHold]);
 
   // Utilities
   const formatRemaining = (seconds: number | null) => {
@@ -390,12 +446,25 @@ export default function MorningRoutinePage() {
 
               <div className="mt-8 flex items-center justify-center">
                 <button
-                  className="rounded-full border border-black/20 px-6 py-3 text-xs uppercase tracking-[0.3em] text-black/70 transition hover:border-black/60 hover:bg-black hover:text-white disabled:opacity-50"
-                  onClick={handleMoveToNext}
+                  className={`relative overflow-hidden rounded-full border px-6 py-3 text-xs uppercase tracking-[0.3em] transition select-none disabled:opacity-50 ${
+                    holdProgress > 0
+                      ? "border-black/60 text-white"
+                      : "border-black/20 text-black/70 hover:border-black/60"
+                  }`}
+                  onPointerDown={handleHoldStart}
+                  onPointerUp={cancelHold}
+                  onPointerLeave={cancelHold}
+                  onPointerCancel={cancelHold}
                   disabled={actions.length === 0 || !currentAction}
                   type="button"
+                  aria-label="Hold for 2 seconds to move to next action"
                 >
-                  Move to next
+                  <span
+                    className="absolute inset-0 bg-black origin-left transition-none"
+                    style={{ transform: `scaleX(${holdProgress / 100})` }}
+                    aria-hidden="true"
+                  />
+                  <span className="relative z-10">Move to next</span>
                 </button>
               </div>
             </div>

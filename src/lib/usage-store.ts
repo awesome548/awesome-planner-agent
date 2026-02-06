@@ -12,6 +12,7 @@ interface UsageStore {
   // State
   usageMap: Record<string, boolean>;
   loading: boolean;
+  initialized: boolean;
 
   // Actions
   initialize: () => Promise<void>;
@@ -23,10 +24,14 @@ export const useUsageStore = create<UsageStore>((set, get) => ({
   // Initial state
   usageMap: {},
   loading: true,
+  initialized: false,
 
   // Initialize - fetch all usage data once
   initialize: async () => {
     if (typeof window === "undefined") return;
+    if (get().initialized) return;
+
+    set({ initialized: true });
 
     const supabase = getSupabaseClient();
 
@@ -34,7 +39,7 @@ export const useUsageStore = create<UsageStore>((set, get) => ({
       const { data, error } = await supabase.from(TABLE).select("used_on");
 
       if (error || !data) {
-        set({ loading: false });
+        set({ loading: false, initialized: false });
         return;
       }
 
@@ -46,7 +51,7 @@ export const useUsageStore = create<UsageStore>((set, get) => ({
       set({ usageMap, loading: false });
     } catch (error) {
       console.error("Failed to initialize usage store:", error);
-      set({ loading: false });
+      set({ loading: false, initialized: false });
     }
   },
 

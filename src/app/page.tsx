@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import {
   CalendarDaysIcon,
@@ -9,7 +9,6 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { SparklesIcon } from "@heroicons/react/24/solid";
-import { useRoutineStore } from "@/lib/morning-routine-store";
 import { useUsageStore } from "@/lib/usage-store";
 import BottomBar from "@/components/bottomBar";
 import PageHeader from "@/components/pageHeader";
@@ -32,13 +31,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [msg, setMsg] = useState<string>("");
-  const { usageMap, initialize: initializeUsage, markUsed } = useUsageStore();
-  const { initialize: initializeRoutine } = useRoutineStore();
-
-  useEffect(() => {
-    initializeUsage();
-    initializeRoutine();
-  }, [initializeUsage, initializeRoutine]);
+  const { usageMap, markUsed } = useUsageStore();
 
   const today = useMemo(() => new Date(), []);
   const todayLabel = useMemo(() => {

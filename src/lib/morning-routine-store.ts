@@ -26,6 +26,7 @@ interface RoutineStore {
   actionRecords: Record<string, RoutineActionRecord>;
   completionMap: Record<string, boolean>;
   loading: boolean;
+  initialized: boolean;
 
   // Actions
   initialize: () => Promise<void>;
@@ -45,10 +46,14 @@ export const useRoutineStore = create<RoutineStore>((set, get) => ({
   actionRecords: {},
   completionMap: {},
   loading: true,
+  initialized: false,
 
   // Initialize - fetch all data once
   initialize: async () => {
     if (typeof window === "undefined") return;
+    if (get().initialized) return;
+
+    set({ initialized: true });
 
     const supabase = getSupabaseClient();
     const today = toISODate(new Date());
@@ -77,7 +82,7 @@ export const useRoutineStore = create<RoutineStore>((set, get) => ({
       set({ actions, actionRecords, completionMap, loading: false });
     } catch (error) {
       console.error("Failed to initialize routine store:", error);
-      set({ loading: false });
+      set({ loading: false, initialized: false });
     }
   },
 
@@ -218,7 +223,8 @@ export const useRoutineStore = create<RoutineStore>((set, get) => ({
     });
 
     const completions = completionsRes.data || [];
-    const { completionMap } = get();
+    const prevCompletionMap = get().completionMap;
+    const completionMap = { ...prevCompletionMap };
     if (completions.length > 0) {
       completionMap[today] = Boolean(completions[0].completed);
     }
