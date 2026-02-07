@@ -7,6 +7,7 @@ import {
   CalendarIcon,
   UserCircleIcon,
   XMarkIcon,
+  ArrowPathIcon, // Added for loading spinner
 } from "@heroicons/react/24/outline";
 import { SparklesIcon } from "@heroicons/react/24/solid";
 import { useUsageStore } from "@/lib/usage-store";
@@ -105,12 +106,21 @@ export default function Home() {
           icon={<CalendarDaysIcon className="size-6 text-secondary" />}
           right={
             <button
-              className="h-9 w-9 rounded-full border border-black/20 flex items-center justify-center text-black/70 transition hover:border-black/60 hover:bg-black hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40"
+              className="h-9 w-9 rounded-full border border-black/20 flex items-center justify-center text-black/70 transition hover:border-black/60 hover:bg-black hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40 overflow-hidden"
               onClick={() => (session ? signOut() : signIn("google"))}
               aria-label={session ? "Sign out" : "Sign in"}
               title={session ? "Sign out" : "Sign in"}
             >
-              <UserCircleIcon className="h-5 w-5" />
+              {/* UPDATED: Show Profile Image if logged in, else generic icon */}
+              {session?.user?.image ? (
+                <img
+                  src={session.user.image}
+                  alt={session.user.name || "User"}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <UserCircleIcon className="h-5 w-5" />
+              )}
             </button>
           }
         />
@@ -122,12 +132,16 @@ export default function Home() {
         />
 
         <section className="mt-14 flex flex-col items-center text-center text-black/70">
-          <div className="text-lg tracking-[0.2em] uppercase">Plan your day today</div>
+          <div className="text-lg tracking-[0.2em] uppercase">
+            Plan your day today
+          </div>
         </section>
 
         <section className="flex-1 flex items-center">
           <div className="w-full max-w-3xl mx-auto rounded-3xl border border-black/10 bg-white/70 backdrop-blur px-6 py-6 shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
-            <div className="text-xs uppercase tracking-[0.35em] text-black/50">Add your tasks</div>
+            <div className="text-xs uppercase tracking-[0.35em] text-black/50">
+              Add your tasks
+            </div>
             <textarea
               className="mt-3 w-full rounded-2xl border border-black/10 bg-white/80 p-4 text-sm leading-relaxed shadow-inner focus:outline-none focus:ring-2 focus:ring-black/20"
               placeholder='e.g. "Tomorrow: laundry, write report, book dentist"'
@@ -142,16 +156,25 @@ export default function Home() {
                 title={!text.trim() ? "Add a plan first" : "Generate plan"}
                 aria-label="Generate plan"
               >
-                <SparklesIcon className="size-4" />
+                {/* UPDATED: Loading Animation State */}
+                {loading ? (
+                  <ArrowPathIcon className="size-4 animate-spin" />
+                ) : (
+                  <SparklesIcon className="size-4" />
+                )}
               </button>
               {msg && <div className="text-xs text-black/60">{msg}</div>}
             </div>
 
             {plan && (
               <div className="mt-4 rounded-2xl border border-black/10 bg-white/70 p-4 space-y-2">
-                <div className="text-xs uppercase tracking-[0.3em] text-black/60">Preview</div>
+                <div className="text-xs uppercase tracking-[0.3em] text-black/60">
+                  Preview
+                </div>
                 {draftTasks.length === 0 && (
-                  <div className="text-xs text-black/50">No tasks selected.</div>
+                  <div className="text-xs text-black/50">
+                    No tasks selected.
+                  </div>
                 )}
                 {draftTasks.map((t, i) => (
                   <div
@@ -190,10 +213,17 @@ export default function Home() {
                   className="mt-2 h-9 w-9 rounded-full border border-orange-300 flex items-center justify-center text-orange-500 transition hover:border-orange-400 hover:bg-orange-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-200 disabled:opacity-50"
                   onClick={confirmAndCreate}
                   disabled={!session || creating || draftTasks.length === 0}
-                  title={!session ? "Sign in to create Google Calendar events" : ""}
+                  title={
+                    !session ? "Sign in to create Google Calendar events" : ""
+                  }
                   aria-label="Add to Google Calendar"
                 >
-                  <CalendarIcon className="size-4" />
+                  {/* Optional: Add spinner here for creation too if desired */}
+                  {creating ? (
+                    <ArrowPathIcon className="size-4 animate-spin" />
+                  ) : (
+                    <CalendarIcon className="size-4" />
+                  )}
                 </button>
 
                 {!session && (
