@@ -23,14 +23,13 @@ npm install
 ```
 
 Helpful Google setup links:
-```text
-Google Cloud Console: https://console.cloud.google.com/
-Create/select a project: https://console.cloud.google.com/projectcreate
-APIs & Services Library: https://console.cloud.google.com/apis/library
-Credentials (OAuth client IDs + API keys): https://console.cloud.google.com/apis/credentials
-OAuth consent screen: https://console.cloud.google.com/apis/credentials/consent
-Google Calendar API overview: https://developers.google.com/calendar/api
-```
+
+- [Google Cloud Console](https://console.cloud.google.com/)
+- [Create/select a project](https://console.cloud.google.com/projectcreate)
+- [APIs & Services Library](https://console.cloud.google.com/apis/library)
+- [Credentials (OAuth client IDs + API keys)](https://console.cloud.google.com/apis/credentials)
+- [OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent)
+- [Google Calendar API overview](https://developers.google.com/calendar/api)
 
 2) Create `.env.local`
 ```bash
