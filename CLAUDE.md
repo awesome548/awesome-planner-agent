@@ -30,7 +30,7 @@ All env vars are validated with Zod in `src/lib/env.ts` (loaded from `.env.local
 |-------|---------|
 | `/` | Day planner: text input -> OpenAI generates structured schedule -> preview/edit -> create Google Calendar events |
 | `/morning` | Morning routine: CRUD actions, fullscreen timer runner mode with long-press "Move to next" (2s hold), per-action completion tracking |
-| `/usage` | Year-at-a-glance: 365-dot grid showing streaks for both planning and routine completion |
+| `/usage` | Year-at-a-glance: 365-dot grid showing streaks for both planning and routine completion, plus weekly completion bars (6-day target) |
 
 **API routes** (`src/app/api/`):
 - `plan/route.ts` - POST: validates input, fetches today's Google Calendar events, optionally fetches Notion rules, sends prompt to OpenAI (`gpt-5-mini` with `zodTextFormat`), returns validated `Plan` with conflict detection
@@ -54,6 +54,18 @@ Two Zustand stores in `src/lib/`:
 Both stores use immutable update patterns exclusively. Each store has an `initialized` boolean flag for idempotent initialization (set synchronously before the async fetch to prevent concurrent calls; reset on failure for retry).
 
 Store initialization is centralized in `src/components/storeInitializer.tsx`, rendered inside `<SessionProvider>` in `src/app/providers.tsx`. This ensures stores load from any entry page (`/`, `/morning`, `/usage`) without duplicating init logic in individual pages.
+
+## Week System (Monday Start)
+
+Weekly UI/metrics use a shared Monday-based week definition across the app.
+
+- Shared helpers: `src/lib/week.ts`
+  - `startOfWeekMonday(date)`
+  - `getWeekDatesFromMonday(baseDate)`
+  - `getCurrentWeekKeys(baseDate)`
+- `src/components/weekBar.tsx` renders Mon-Sun using the shared helpers.
+- `src/app/usage/page.tsx` weekly completion bars also use the shared helpers.
+- Weekly completion target is `6` days (displayed as `%` and `N/6`).
 
 ## Database (Supabase)
 

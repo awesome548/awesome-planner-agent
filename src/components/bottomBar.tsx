@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 type BottomBarProps = {
-  active: "usage" | "day" | "morning";
+  active: "usage" | "plan" | "morning";
 };
 
 export default function BottomBar({ active }: BottomBarProps) {
@@ -19,7 +19,7 @@ export default function BottomBar({ active }: BottomBarProps) {
           All
         </Link>
         <Link
-          className={`${base} ${active === "day" ? activeClasses : inactive}`}
+          className={`${base} ${active === "plan" ? activeClasses : inactive}`}
           href="/"
         >
           Day

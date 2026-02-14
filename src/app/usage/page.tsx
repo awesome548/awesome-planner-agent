@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Squares2X2Icon } from "@heroicons/react/24/outline";
 import { FireIcon, CheckCircleIcon } from "@heroicons/react/24/solid";
 import { toISODate } from "@/lib/utils";
+import { getCurrentWeekKeys } from "@/lib/week";
 import { useRoutineStore } from "@/lib/morning-routine-store";
 import { useUsageStore } from "@/lib/usage-store";
 import BottomBar from "@/components/bottomBar";
@@ -25,11 +26,15 @@ export default function UsagePage() {
   const totalDays = useMemo(() => 365, []);
   const today = useMemo(() => new Date(), []);
   const daysLeft = useMemo(() => Math.max(totalDays - dayOfYear(today), 0), [totalDays, today]);
+  const weeklyTargetDays = 6;
   const todayStart = useMemo(() => {
     const base = new Date(today);
     base.setHours(0, 0, 0, 0);
     return base;
   }, [today]);
+  const currentWeekKeys = useMemo(() => {
+    return getCurrentWeekKeys(todayStart);
+  }, [todayStart]);
 
   const dots = useMemo(() => {
     return Array.from({ length: totalDays }).map((_, i) => {
@@ -51,8 +56,12 @@ export default function UsagePage() {
         break;
       }
     }
-    return { completedDays, streak };
-  }, [usageMap, todayStart, totalDays]);
+    const completedThisWeek = currentWeekKeys.reduce((sum, key) => {
+      return usageMap[key] ? sum + 1 : sum;
+    }, 0);
+    const completionPercent = Math.round((Math.min(completedThisWeek, weeklyTargetDays) / weeklyTargetDays) * 100);
+    return { completedDays, streak, completedThisWeek, completionPercent };
+  }, [usageMap, todayStart, totalDays, currentWeekKeys, weeklyTargetDays]);
 
   const routineStats = useMemo(() => {
     const completedDays = Object.values(completionMap).filter(Boolean).length;
@@ -67,8 +76,12 @@ export default function UsagePage() {
         break;
       }
     }
-    return { completedDays, streak };
-  }, [completionMap, todayStart, totalDays]);
+    const completedThisWeek = currentWeekKeys.reduce((sum, key) => {
+      return completionMap[key] ? sum + 1 : sum;
+    }, 0);
+    const completionPercent = Math.round((Math.min(completedThisWeek, weeklyTargetDays) / weeklyTargetDays) * 100);
+    return { completedDays, streak, completedThisWeek, completionPercent };
+  }, [completionMap, todayStart, totalDays, currentWeekKeys, weeklyTargetDays]);
 
   return (
     <main className="min-h-screen relative overflow-hidden bg-[#f8f6f1] text-[#0c0c0c]">
@@ -98,6 +111,20 @@ export default function UsagePage() {
               </>
             }
           >
+            <div className="mb-4 rounded-2xl border border-black/10 bg-white/80 p-3 shadow-inner">
+              <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-black/60">
+                <span>Weekly completion</span>
+                <span>
+                  {planningStats.completionPercent}% ({planningStats.completedThisWeek}/{weeklyTargetDays})
+                </span>
+              </div>
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full border border-black/10 bg-black/5">
+                <div
+                  className="h-full rounded-full bg-primary transition-all"
+                  style={{ width: `${planningStats.completionPercent}%` }}
+                />
+              </div>
+            </div>
             <RecordDotGrid
               dots={dots}
               todayStart={todayStart}
@@ -123,6 +150,20 @@ export default function UsagePage() {
               </>
             }
           >
+            <div className="mb-4 rounded-2xl border border-black/10 bg-white/80 p-3 shadow-inner">
+              <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-black/60">
+                <span>Weekly completion</span>
+                <span>
+                  {routineStats.completionPercent}% ({routineStats.completedThisWeek}/{weeklyTargetDays})
+                </span>
+              </div>
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full border border-black/10 bg-black/5">
+                <div
+                  className="h-full rounded-full bg-secondary transition-all"
+                  style={{ width: `${routineStats.completionPercent}%` }}
+                />
+              </div>
+            </div>
             <RecordDotGrid
               dots={dots}
               todayStart={todayStart}
