@@ -237,7 +237,7 @@ export default function Home() {
         </section>
       </div>
 
-      <BottomBar active="day" />
+      <BottomBar active="plan" />
     </main>
   );
 }
