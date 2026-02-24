@@ -68,6 +68,10 @@ export default function Home() {
 
     setPlan(data.plan);
     setDraftTasks(data.plan?.tasks ?? []);
+    setMsg(
+      data?.warning ||
+        "Plan generated. Review the tasks and create events when ready."
+    );
     await markUsed();
   }
 
@@ -91,7 +95,8 @@ export default function Home() {
       return;
     }
 
-    setMsg(`✅ Created ${data.createdCount} events in Google Calendar`);
+    const createdMessage = `✅ Created ${data.createdCount} events in Google Calendar`;
+    setMsg(data?.warning ? `${createdMessage}. ${data.warning}` : createdMessage);
   }
 
   return (

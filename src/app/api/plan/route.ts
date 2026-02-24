@@ -90,7 +90,6 @@ export async function POST(req: Request) {
     const promptContent = `User input:\n${text}\n\nToday (local to user): ${nowLocal}\n\nScheduling rule: Only schedule tasks for ${today}. Consider current local time and plan events ahead. Do not schedule any task in the past.\n\nExisting busy times (local):\n${JSON.stringify(
       busySummary
     )}\n\nDo not schedule tasks overlapping those busy times.\n\nPlanner rules (from Notion):\n${notionRules}`
-    console.log(promptContent);
     const response = await openai.responses.create({
       model: "gpt-5-mini-2025-08-07",
       input: [
@@ -112,20 +111,16 @@ export async function POST(req: Request) {
     const parsedPlan = PlanSchema.parse(json);
 
     const conflicts = findConflicts(parsedPlan.tasks, busyIntervals, tz);
-    if (conflicts.length > 0) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Generated plan overlaps existing calendar events",
-          conflicts,
-        },
-        { status: 409 }
-      );
-    }
+    const warning =
+      conflicts.length > 0
+        ? "Generated plan includes overlaps with existing calendar events."
+        : undefined;
 
     return NextResponse.json({
       ok: true,
       plan: parsedPlan,
+      warning,
+      conflicts,
       rules_preview: notionRules.slice(0, 400),
     });
   } catch (err: any) {

@@ -68,16 +68,10 @@ export async function POST(req: Request) {
 
     const busyIntervals = toBusyIntervals(eventsResult.events ?? [], timeZone);
     const conflicts = findConflicts(tasks, busyIntervals, timeZone);
-    if (conflicts.length > 0) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Draft tasks overlap existing calendar events",
-          conflicts,
-        },
-        { status: 409 }
-      );
-    }
+    const warning =
+      conflicts.length > 0
+        ? "Draft tasks overlap existing calendar events. Events were still created."
+        : undefined;
 
     const results = await tasks.reduce(
       async (accPromise, task) => {
@@ -103,7 +97,7 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json({ ok: true, createdCount });
+    return NextResponse.json({ ok: true, createdCount, warning, conflicts });
   } catch (err: any) {
     return NextResponse.json(
       { ok: false, error: err?.message ?? "Failed to create events" },
