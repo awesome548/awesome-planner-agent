@@ -2,18 +2,33 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ChevronDownIcon,
-  ChevronUpIcon,
-  PlusIcon,
   SunIcon,
-  XMarkIcon,
 } from "@heroicons/react/24/outline";
-import { PencilIcon } from "@heroicons/react/24/solid";
+import { 
+  Plus, 
+  Pencil, 
+  Trash2, 
+  ChevronUp, 
+  ChevronDown, 
+  X, 
+  Play, 
+  CheckCircle2,
+  Clock
+} from "lucide-react";
 import { useRoutineStore } from "@/lib/morning-routine-store";
 import BottomBar from "@/components/bottomBar";
 import PageHeader from "@/components/pageHeader";
 import { toISODate } from "@/lib/utils";
 import WeekBar from "@/components/weekBar";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 
 const HOLD_DURATION_MS = 2000;
 
@@ -43,7 +58,6 @@ export default function MorningRoutinePage() {
 
   const DEFAULT_ACTION_SECONDS = 5 * 60;
 
-  // Refresh records when tab becomes visible
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -57,7 +71,6 @@ export default function MorningRoutinePage() {
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [refreshTodayRecords]);
 
-  // Computed values
   const completedToday = completionMap[toISODate(new Date())] || false;
 
   const currentActionId = useMemo(() => {
@@ -77,7 +90,6 @@ export default function MorningRoutinePage() {
     return actions.slice(currentIndex + 1, currentIndex + 4);
   }, [actions, currentAction, currentIndex]);
 
-  // Timer effects
   useEffect(() => {
     if (!runnerOpen) return;
 
@@ -103,7 +115,6 @@ export default function MorningRoutinePage() {
     return () => clearInterval(interval);
   }, [runnerOpen, currentAction?.id]);
 
-  // Handlers
   const handleAddAction = async () => {
     if (!titleInput.trim()) return;
     await addAction(titleInput);
@@ -178,7 +189,6 @@ export default function MorningRoutinePage() {
     return () => cancelHold();
   }, [cancelHold]);
 
-  // Utilities
   const formatRemaining = (seconds: number | null) => {
     if (seconds === null) return "--:--";
     const minutes = Math.floor(seconds / 60)
@@ -193,284 +203,316 @@ export default function MorningRoutinePage() {
   return (
     <main className="min-h-screen relative overflow-hidden bg-[#f8f6f1] text-[#0c0c0c]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#ffffff_0%,_#f8f6f1_55%,_#f1efe8_100%)]" />
-      <div className="pointer-events-none absolute inset-0 opacity-80 bg-[radial-gradient(#1a1a1a1a_1px,transparent_1px)] [background-size:20px_20px]" />
+      <div className="pointer-events-none absolute inset-0 opacity-40 bg-[radial-gradient(#1a1a1a1a_1px,transparent_1px)] [background-size:24px_24px]" />
 
       <div className="relative z-10 max-w-5xl mx-auto px-6 pt-10 pb-32">
         <PageHeader
           eyebrow="Morning routine"
           title="Flow, focus, finish strong"
-          icon={<SunIcon className="size-6 text-primary" />}
+          icon={<SunIcon className="size-6 text-sky-500" />}
           right={
-            <div className="text-xs uppercase tracking-[0.3em] text-black/50">
+            <Badge variant="outline" className="text-[10px] uppercase tracking-[0.2em] border-black/10 text-black/40">
               {actions.length} actions
-            </div>
+            </Badge>
           }
         />
 
         <WeekBar
           statusMap={completionMap}
-          usedClassName="h-3 w-3 rounded-full bg-primary"
-          pastClassName="h-0.5 w-3 rounded-full bg-primary/40"
+          usedClassName="h-3 w-3 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.5)]"
+          pastClassName="h-0.5 w-3 rounded-full bg-sky-400/30"
         />
 
-        {/* Routine Manager */}
-        <section className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="relative rounded-3xl border border-black/10 bg-white/70 backdrop-blur px-6 py-6 shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
-            <div className="flex items-center justify-between">
-              <div className="text-xs uppercase tracking-[0.3em] text-black/50">Routine manager</div>
-              <div className="text-[10px] uppercase tracking-[0.2em] text-black/50">
-                {actions.length} actions
+        <section className="mt-12 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+          <Card className="border-black/5 bg-white/60 backdrop-blur-xl shadow-2xl shadow-black/5 overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between pb-4">
+              <div>
+                <CardTitle className="text-lg font-semibold tracking-tight">Routine Manager</CardTitle>
+                <CardDescription>Organize your steps</CardDescription>
               </div>
-            </div>
-
-            <div className="mt-4 grid gap-2">
-              {actions.map((action, index) => (
-                <div
-                  key={action.id}
-                  className="rounded-2xl border border-black/10 bg-white/80 px-3 py-2 shadow-inner"
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      className={`rounded-full border px-2 py-1 text-[10px] uppercase tracking-[0.2em] transition ${actionRecords[action.id]?.completed
-                        ? "border-black bg-black text-white"
-                        : "border-black/10 text-black/60 hover:border-black/60 hover:bg-black hover:text-white"
-                        }`}
-                      onClick={() => toggleActionCompletion(action.id)}
-                      aria-label="Toggle action completed"
-                      type="button"
+              <Button
+                variant={managerOpen ? "default" : "outline"}
+                size="sm"
+                className={managerOpen ? "bg-black" : "border-black/10"}
+                onClick={() => setManagerOpen((prev) => !prev)}
+              >
+                {managerOpen ? (
+                  <>
+                    <CheckCircle2 className="mr-2 h-4 w-4" /> Done
+                  </>
+                ) : (
+                  <>
+                    <Pencil className="mr-2 h-4 w-4" /> Edit
+                  </>
+                )}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[400px] pr-4">
+                <div className="space-y-3">
+                  {actions.map((action, index) => (
+                    <div
+                      key={action.id}
+                      className="group flex items-center gap-3 rounded-2xl border border-black/[0.03] bg-white/40 p-3 transition-all hover:bg-white/80"
                     >
-                      {actionRecords[action.id]?.completed ? "Done" : "Do"}
-                    </button>
-                    <input
-                      className="flex-1 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-black/20 rounded-md px-2 py-1"
-                      value={action.title}
-                      onChange={(e) => {
-                        updateAction({ ...action, title: e.target.value });
-                      }}
-                      aria-label="Edit routine action title"
-                    />
-                    <div className="w-12 text-right text-[10px] uppercase tracking-[0.2em] text-black/50">
-                      {String(index + 1).padStart(2, "0")}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={`h-7 px-2 text-[10px] uppercase tracking-widest rounded-full transition-all ${
+                          actionRecords[action.id]?.completed
+                            ? "bg-black text-white hover:bg-black/80"
+                            : "bg-black/5 text-black/40 hover:bg-black hover:text-white"
+                        }`}
+                        onClick={() => toggleActionCompletion(action.id)}
+                      >
+                        {actionRecords[action.id]?.completed ? "Done" : "Mark"}
+                      </Button>
+                      
+                      <Input
+                        className="flex-1 h-8 border-none bg-transparent font-medium text-sm focus-visible:ring-0 px-1"
+                        value={action.title}
+                        onChange={(e) => {
+                          updateAction({ ...action, title: e.target.value });
+                        }}
+                      />
+
+                      <div className="flex items-center gap-1">
+                        {managerOpen && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 rounded-full text-black/20 hover:text-black hover:bg-black/5"
+                              onClick={() => handleMoveAction(index, -1)}
+                            >
+                              <ChevronUp className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 rounded-full text-black/20 hover:text-black hover:bg-black/5"
+                              onClick={() => handleMoveAction(index, 1)}
+                            >
+                              <ChevronDown className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 rounded-full text-black/20 hover:text-destructive hover:bg-destructive/5"
+                              onClick={() => deleteAction(action.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                        <span className="text-[10px] font-bold text-black/10 tracking-widest ml-1">
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
+                      </div>
                     </div>
-                    {managerOpen && (
-                      <>
-                        <button
-                          className="rounded-full border border-black/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-black/60 transition hover:border-black/60 hover:bg-black hover:text-white"
-                          onClick={() => handleMoveAction(index, -1)}
-                          aria-label="Move action up"
-                          type="button"
-                        >
-                          <ChevronUpIcon className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          className="rounded-full border border-black/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-black/60 transition hover:border-black/60 hover:bg-black hover:text-white"
-                          onClick={() => handleMoveAction(index, 1)}
-                          aria-label="Move action down"
-                          type="button"
-                        >
-                          <ChevronDownIcon className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          className="rounded-full border border-black/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-black/60 transition hover:border-black/60 hover:bg-black hover:text-white"
-                          onClick={() => deleteAction(action.id)}
-                          aria-label="Delete action"
-                          type="button"
-                        >
-                          <XMarkIcon className="h-3.5 w-3.5" />
-                        </button>
-                      </>
-                    )}
+                  ))}
+
+                  {actions.length === 0 && !loading && (
+                    <div className="py-12 text-center text-sm text-black/30 italic">
+                      Add your first routine action to begin.
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+
+              {managerOpen && (
+                <div className="mt-6 pt-6 border-t border-black/5">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="e.g. Morning meditation"
+                      value={titleInput}
+                      onChange={(e) => setTitleInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleAddAction()}
+                      className="rounded-full border-black/10 bg-white/60"
+                    />
+                    <Button
+                      size="icon"
+                      className="rounded-full bg-black text-white shadow-lg"
+                      onClick={handleAddAction}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-              ))}
-
-              {actions.length === 0 && !loading && (
-                <div className="rounded-2xl border border-black/10 bg-white/80 px-3 py-4 text-sm text-black/50">
-                  Add your first routine action to get started.
-                </div>
               )}
-            </div>
+            </CardContent>
+          </Card>
 
-            {managerOpen && (
-              <div className="mt-4 rounded-2xl border border-black/10 bg-white/80 px-4 py-3 shadow-inner">
-                <div className="text-[10px] uppercase tracking-[0.2em] text-black/50">
-                  New action
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <input
-                    className="flex-1 rounded-2xl border border-black/10 bg-white/80 px-3 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-black/20"
-                    placeholder="e.g. Make bed"
-                    value={titleInput}
-                    onChange={(e) => setTitleInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleAddAction()}
-                  />
-                  <button
-                    className="h-9 w-9 rounded-full border border-black/20 flex items-center justify-center text-black/70 transition hover:border-black/60 hover:bg-black hover:text-white"
-                    onClick={handleAddAction}
-                    type="button"
-                    aria-label="Add action"
-                    title="Add action"
-                  >
-                    <PlusIcon className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            )}
+          <div className="space-y-8">
+            <Card className="border-black/5 bg-white/60 backdrop-blur-xl shadow-2xl shadow-black/5 overflow-hidden">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-semibold tracking-tight">Time Control</CardTitle>
+                <CardDescription>Ready to start?</CardDescription>
+              </CardHeader>
+              <CardContent className="text-center">
+                {completedToday ? (
+                  <div className="py-8 space-y-3">
+                    <div className="flex justify-center">
+                      <div className="h-16 w-16 rounded-full bg-sky-50 flex items-center justify-center">
+                        <CheckCircle2 className="h-8 w-8 text-sky-500" />
+                      </div>
+                    </div>
+                    <p className="text-lg font-semibold tracking-tight">Morning Completed</p>
+                    <p className="text-xs text-black/40 uppercase tracking-widest font-bold">Excellent start to your day</p>
+                  </div>
+                ) : (
+                  <div className="py-6 space-y-4">
+                    <Button
+                      size="lg"
+                      className="w-full h-20 rounded-3xl bg-sky-400 hover:bg-sky-500 text-white shadow-xl shadow-sky-200 transition-all active:scale-[0.98] text-lg font-semibold tracking-wide"
+                      onClick={() => setRunnerOpen(true)}
+                      disabled={actions.length === 0}
+                    >
+                      <Play className="mr-3 h-6 w-6 fill-current" />
+                      Start Routine
+                    </Button>
+                    {actions.length === 0 && !loading && (
+                      <p className="text-[10px] text-black/30 uppercase tracking-[0.2em] font-bold">
+                        Add actions to enable start
+                      </p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-            <div className="mt-6 flex justify-end gap-3">
-              {managerOpen && (
-                <button
-                  className="flex items-center gap-2 rounded-full border border-black/20 px-4 py-2 text-[10px] uppercase tracking-[0.25em] text-black/70 transition hover:border-black/60 hover:bg-black hover:text-white"
-                  onClick={() => {
-                    setManagerOpen(false);
-                    setTitleInput("");
-                  }}
-                  type="button"
-                  aria-label="Cancel routine manager"
-                >
-                  Cancel
-                </button>
-              )}
-              <button
-                className={`flex items-center gap-2 rounded-full border px-4 py-2 text-[10px] uppercase tracking-[0.25em] transition ${managerOpen
-                  ? "border-black bg-black text-white"
-                  : "border-black/20 text-black/70 hover:border-black/60 hover:bg-black hover:text-white"
-                  }`}
-                onClick={() => setManagerOpen((prev) => !prev)}
-                type="button"
-                aria-label={managerOpen ? "Close routine manager" : "Edit routine manager"}
-              >
-                <PencilIcon className="h-3.5 w-3.5" />
-                {managerOpen ? "Done" : "Edit"}
-              </button>
-            </div>
-          </div>
-
-          {/* Time Control */}
-          <div className="rounded-3xl border border-black/10 bg-white/70 backdrop-blur px-6 py-6 shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
-            <div className="text-xs uppercase tracking-[0.3em] text-black/50">Time control</div>
-            <div className="mt-6 rounded-2xl border border-black/10 bg-white/80 px-5 py-6 text-center shadow-inner">
-              {completedToday ? (
-                <div className="text-lg font-semibold tracking-tight">Today completed ✅</div>
-              ) : (
-                <button
-                  className="w-full rounded-2xl border border-sky-300 bg-sky-400 px-6 py-6 text-xs uppercase tracking-[0.35em] text-white transition hover:border-sky-400 hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
-                  onClick={() => setRunnerOpen(true)}
-                  disabled={actions.length === 0}
-                  type="button"
-                >
-                  Start Morning Routine
-                </button>
-              )}
-              {!completedToday && actions.length === 0 && !loading && (
-                <div className="mt-3 text-xs text-black/50">
-                  Add at least one action to start your routine.
+            <Card className="border-black/5 bg-white/60 backdrop-blur-xl shadow-2xl shadow-black/5 overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] font-bold text-black/30 mb-2">
+                  <Clock className="h-3 w-3" /> System Status
                 </div>
-              )}
-            </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-black/50">Actions Prepared</span>
+                  <Badge variant="secondary" className="bg-black/5 text-black/60">{actions.length}</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-black/50">Completion Rate</span>
+                  <span className="text-xs font-bold text-black/70">
+                    {actions.length > 0 
+                      ? Math.round((actions.filter(a => actionRecords[a.id]?.completed).length / actions.length) * 100)
+                      : 0}%
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </section>
       </div>
 
       <BottomBar active="morning" />
 
-      {runnerOpen && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-[#f8f6f1]/90 backdrop-blur" />
-          <div className="relative z-10 mx-auto flex min-h-screen max-w-4xl flex-col px-6 py-8">
-            <div className="flex items-center justify-between">
-              <div className="text-xs uppercase tracking-[0.3em] text-black/50">
-                Morning runner
-              </div>
-              <button
-                className="rounded-full border border-black/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-black/60 transition hover:border-black/60 hover:bg-black hover:text-white"
-                onClick={() => setRunnerOpen(false)}
-                type="button"
-                aria-label="Close routine runner"
-                title="Close routine runner"
-              >
-                <XMarkIcon className="h-3.5 w-3.5" />
-              </button>
-            </div>
-
-            <div className="mt-8 flex flex-1 flex-col">
-              <div className="rounded-3xl border border-black/10 bg-white/80 px-6 py-8 text-center shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
-                <div className="text-[10px] uppercase tracking-[0.3em] text-black/50">
-                  Local time
-                </div>
-                <div className="mt-3 text-5xl font-semibold tracking-tight">
+      <Dialog open={runnerOpen} onOpenChange={setRunnerOpen}>
+        <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden border-none bg-transparent shadow-none">
+          <div className="flex-1 flex flex-col bg-[#f8f6f1]/95 backdrop-blur-2xl p-8 rounded-[40px] m-4 shadow-2xl border border-white/50">
+            <DialogHeader className="flex flex-row items-center justify-between mb-12">
+              <div className="space-y-1">
+                <DialogTitle className="text-xs uppercase tracking-[0.4em] text-black/30 font-bold">
+                  Morning Runner
+                </DialogTitle>
+                <div className="text-2xl font-bold tracking-tight">
                   {now.toLocaleTimeString(undefined, {
                     hour: "2-digit",
                     minute: "2-digit",
                   })}
                 </div>
-                <div className="mt-3 text-xs text-black/60">
-                  Step {actions.length === 0 ? 0 : Math.max(currentIndex + 1, 0)}/
-                  {actions.length}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 rounded-full bg-white/50 border border-black/5 hover:bg-white transition-all"
+                onClick={() => setRunnerOpen(false)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </DialogHeader>
+
+            <div className="flex-1 flex flex-col space-y-12 overflow-y-auto pr-2">
+              <div className="space-y-4 text-center">
+                <Badge variant="outline" className="px-4 py-1 text-[10px] uppercase tracking-[0.3em] border-sky-200 text-sky-600 bg-sky-50 font-bold">
+                  Current Task • {currentIndex + 1} of {actions.length}
+                </Badge>
+                <h2 className="text-5xl font-bold tracking-tight leading-tight px-4">
+                  {currentAction ? currentAction.title : "All Completed"}
+                </h2>
+                <div className="flex items-center justify-center gap-2 text-2xl font-mono text-black/40">
+                  <Clock className="h-6 w-6" /> {formatRemaining(remainingSeconds)}
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-                <div className="rounded-3xl border border-black/10 bg-white/80 px-5 py-5 shadow-inner">
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-black/50">
-                    Current task
-                  </div>
-                  <div className="mt-3 text-2xl font-semibold tracking-tight">
-                    {currentAction ? currentAction.title : "All done"}
-                  </div>
-                  <div className="mt-3 text-sm text-black/60">
-                    Remaining time: {formatRemaining(remainingSeconds)}
-                  </div>
-                </div>
+              <div className="grid gap-6 lg:grid-cols-2">
+                <Card className="border-black/5 bg-white/40 shadow-sm rounded-3xl overflow-hidden">
+                  <CardContent className="p-6">
+                    <div className="text-[10px] uppercase tracking-[0.2em] font-bold text-black/30 mb-4">Up Next</div>
+                    <div className="space-y-3">
+                      {upcomingActions.length > 0 ? (
+                        upcomingActions.map((action, idx) => (
+                          <div key={action.id} className="flex items-center justify-between py-1">
+                            <span className="font-medium text-black/70">{action.title}</span>
+                            <Badge variant="outline" className="text-[9px] text-black/20 font-bold border-none">STEP {currentIndex + idx + 2}</Badge>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm italic text-black/30">Finish line ahead</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
 
-                <div className="rounded-3xl border border-black/10 bg-white/80 px-5 py-5 shadow-inner">
-                  <div className="text-[10px] uppercase tracking-[0.2em] text-black/50">
-                    Up next
-                  </div>
-                  <div className="mt-3 grid gap-2 text-sm text-black/70">
-                    {upcomingActions.length > 0 ? (
-                      upcomingActions.map((action, idx) => (
-                        <div key={action.id} className="flex items-center justify-between">
-                          <span>{action.title}</span>
-                          <span className="text-[10px] uppercase tracking-[0.2em] text-black/50">
-                            {String(currentIndex + idx + 2).padStart(2, "0")}
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-sm text-black/50">No more actions.</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-8 flex items-center justify-center">
-                <button
-                  className={`relative overflow-hidden rounded-full border px-6 py-3 text-xs uppercase tracking-[0.3em] transition select-none disabled:opacity-50 ${
-                    holdProgress > 0
-                      ? "border-black/60 text-white"
-                      : "border-black/20 text-black/70 hover:border-black/60"
-                  }`}
-                  onPointerDown={handleHoldStart}
-                  onPointerUp={cancelHold}
-                  onPointerLeave={cancelHold}
-                  onPointerCancel={cancelHold}
-                  disabled={actions.length === 0 || !currentAction}
-                  type="button"
-                  aria-label="Hold for 2 seconds to move to next action"
-                >
-                  <span
-                    className="absolute inset-0 bg-black origin-left transition-none"
-                    style={{ transform: `scaleX(${holdProgress / 100})` }}
-                    aria-hidden="true"
-                  />
-                  <span className="relative z-10">Move to next</span>
-                </button>
+                <Card className="border-black/5 bg-white/40 shadow-sm rounded-3xl overflow-hidden flex flex-col justify-center">
+                  <CardContent className="p-8 text-center space-y-4">
+                    <div className="text-[10px] uppercase tracking-[0.2em] font-bold text-black/30 mb-2">Hold to proceed</div>
+                    <div className="relative h-24 w-24 mx-auto">
+                      <svg className="h-full w-full -rotate-90">
+                        <circle
+                          cx="48"
+                          cy="48"
+                          r="44"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="8"
+                          className="text-black/5"
+                        />
+                        <circle
+                          cx="48"
+                          cy="48"
+                          r="44"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="8"
+                          strokeDasharray={276}
+                          strokeDashoffset={276 - (276 * holdProgress) / 100}
+                          className="text-sky-400 transition-all duration-75"
+                        />
+                      </svg>
+                      <Button
+                        className="absolute inset-2 rounded-full bg-white shadow-lg border-none hover:bg-sky-50 transition-colors select-none touch-none"
+                        onPointerDown={handleHoldStart}
+                        onPointerUp={cancelHold}
+                        onPointerLeave={cancelHold}
+                        onPointerCancel={cancelHold}
+                        disabled={actions.length === 0 || !currentAction}
+                      >
+                        <CheckCircle2 className={`h-8 w-8 transition-colors ${holdProgress > 0 ? 'text-sky-500' : 'text-black/20'}`} />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
+
+            <div className="mt-8">
+              <Progress value={((currentIndex + 1) / actions.length) * 100} className="h-1 bg-black/5" />
+            </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

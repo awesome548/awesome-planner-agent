@@ -1,19 +1,38 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import {
   CalendarDaysIcon,
-  CalendarIcon,
   UserCircleIcon,
-  XMarkIcon,
-  ArrowPathIcon, // Added for loading spinner
 } from "@heroicons/react/24/outline";
-import { SparklesIcon } from "@heroicons/react/24/solid";
+import { 
+  Sparkles, 
+  Calendar, 
+  Trash2, 
+  Loader2, 
+  ChevronDown,
+  LogOut,
+  LogIn
+} from "lucide-react";
 import { useUsageStore } from "@/lib/usage-store";
 import BottomBar from "@/components/bottomBar";
 import PageHeader from "@/components/pageHeader";
 import WeekBar from "@/components/weekBar";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 type Task = {
   title: string;
@@ -22,6 +41,12 @@ type Task = {
   duration_minutes: number;
   difficulty: "simple" | "normal" | "deep";
   notes?: string;
+};
+
+type UserCalendar = {
+  id: string;
+  summary: string;
+  primary?: boolean;
 };
 
 export default function Home() {
@@ -34,13 +59,36 @@ export default function Home() {
   const [msg, setMsg] = useState<string>("");
   const { usageMap, markUsed } = useUsageStore();
 
+  const [calendars, setCalendars] = useState<UserCalendar[]>([]);
+  const [selectedCalendarId, setSelectedCalendarId] = useState<string>("primary");
+  const [calendarsLoading, setCalendarsLoading] = useState(false);
+
   const today = useMemo(() => new Date(), []);
   const todayLabel = useMemo(() => {
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const dd = String(today.getDate()).padStart(2, "0");
-    return `${yyyy}.${mm}.${dd}`;
+    return today.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).replace(/\//g, ".");
   }, [today]);
+
+  useEffect(() => {
+    if (!session) return;
+    setCalendarsLoading(true);
+    fetch("/api/calendar/calendars")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.ok && Array.isArray(data.calendars)) {
+          setCalendars(data.calendars);
+          const primary = data.calendars.find((c: UserCalendar) => c.primary);
+          if (primary) setSelectedCalendarId(primary.id);
+        }
+      })
+      .catch(() => {
+        // silently fall back to "primary"
+      })
+      .finally(() => setCalendarsLoading(false));
+  }, [session]);
 
   async function generatePlan() {
     if (!session) {
@@ -50,73 +98,96 @@ export default function Home() {
     setLoading(true);
     setMsg("");
     setPlan(null);
+    try {
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const res = await fetch("/api/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, timeZone, calendarId: selectedCalendarId }),
+      });
 
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const res = await fetch("/api/plan", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, timeZone }),
-    });
+      const data = await res.json();
 
-    const data = await res.json();
-    setLoading(false);
+      if (!res.ok || !data?.ok) {
+        setMsg(data?.error || "Failed to generate plan");
+        return;
+      }
 
-    if (!res.ok || !data?.ok) {
-      setMsg(data?.error || "Failed to generate plan");
-      return;
+      setPlan(data.plan);
+      setDraftTasks(data.plan?.tasks ?? []);
+      setMsg(
+        data?.warning ||
+          "Plan generated. Review and create events."
+      );
+      await markUsed();
+    } catch {
+      setMsg("Network error. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setPlan(data.plan);
-    setDraftTasks(data.plan?.tasks ?? []);
-    setMsg(
-      data?.warning ||
-        "Plan generated. Review the tasks and create events when ready."
-    );
-    await markUsed();
   }
 
   async function confirmAndCreate() {
     if (!plan) return;
     setCreating(true);
     setMsg("");
+    try {
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const res = await fetch("/api/calendar/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan: { tasks: draftTasks },
+          timeZone,
+          calendarId: selectedCalendarId,
+        }),
+      });
 
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const res = await fetch("/api/calendar/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plan: { tasks: draftTasks }, timeZone }),
-    });
+      const data = await res.json();
 
-    const data = await res.json();
-    setCreating(false);
+      if (!res.ok || !data?.ok) {
+        setMsg(data?.error || "Failed to create events");
+        return;
+      }
 
-    if (!res.ok || !data?.ok) {
-      setMsg(data?.error || "Failed to create events");
-      return;
+      const selectedLabel =
+        calendars.find((c) => c.id === selectedCalendarId)?.summary ?? selectedCalendarId;
+      const createdMessage = `Created ${data.createdCount} events in "${selectedLabel}"`;
+      setMsg(data?.warning ? `${createdMessage}. ${data.warning}` : createdMessage);
+    } catch {
+      setMsg("Network error. Please try again.");
+    } finally {
+      setCreating(false);
     }
-
-    const createdMessage = `✅ Created ${data.createdCount} events in Google Calendar`;
-    setMsg(data?.warning ? `${createdMessage}. ${data.warning}` : createdMessage);
   }
 
-  return (
-    <main className="min-h-screen relative overflow-hidden bg-[#f8f6f1] text-[#0c0c0c]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#ffffff_0%,_#f8f6f1_55%,_#f1efe8_100%)]" />
-      <div className="pointer-events-none absolute inset-0 opacity-80 bg-[radial-gradient(#1a1a1a1a_1px,transparent_1px)] [background-size:20px_20px]" />
+  const selectedCalendarLabel = useMemo(() => {
+    if (calendarsLoading) return "Loading…";
+    if (calendars.length === 0) return "Primary calendar";
+    return (
+      calendars.find((c) => c.id === selectedCalendarId)?.summary ?? "Primary calendar"
+    );
+  }, [calendars, selectedCalendarId, calendarsLoading]);
 
-      <div className="relative z-10 max-w-5xl mx-auto px-6 pt-10 pb-36 flex min-h-screen flex-col">
+  return (
+    <main className="min-h-screen relative overflow-hidden bg-[#f8f6f1] text-[#0c0c0c] selection:bg-primary/20">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#ffffff_0%,_#f8f6f1_55%,_#f1efe8_100%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-40 bg-[radial-gradient(#1a1a1a1a_1px,transparent_1px)] [background-size:24px_24px]" />
+
+      <div className="relative z-10 max-w-4xl mx-auto px-6 pt-10 pb-36 flex min-h-screen flex-col">
         <PageHeader
           eyebrow="Day planner"
           title={todayLabel}
-          icon={<CalendarDaysIcon className="size-6 text-secondary" />}
+          icon={<CalendarDaysIcon className="size-6 text-primary" />}
           right={
-            <button
-              className="h-9 w-9 rounded-full border border-black/20 flex items-center justify-center text-black/70 transition hover:border-black/60 hover:bg-black hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40 overflow-hidden"
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full h-10 w-10 border border-black/5 bg-white/50 backdrop-blur-sm overflow-hidden hover:bg-white/80 transition-all"
               onClick={() => (session ? signOut() : signIn("google"))}
               aria-label={session ? "Sign out" : "Sign in"}
               title={session ? "Sign out" : "Sign in"}
             >
-              {/* UPDATED: Show Profile Image if logged in, else generic icon */}
               {session?.user?.image ? (
                 <img
                   src={session.user.image}
@@ -124,121 +195,160 @@ export default function Home() {
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <UserCircleIcon className="h-5 w-5" />
+                <UserCircleIcon className="h-6 w-6 text-black/40" />
               )}
-            </button>
+            </Button>
           }
         />
 
         <WeekBar
           statusMap={usageMap}
-          usedClassName="h-3 w-3 rounded-full bg-secondary"
-          pastClassName="h-0.5 w-3 rounded-full bg-secondary/40"
+          usedClassName="h-3 w-3 rounded-full bg-primary shadow-[0_0_8px_rgba(251,150,110,0.5)]"
+          pastClassName="h-0.5 w-3 rounded-full bg-primary/30"
         />
 
-        <section className="mt-14 flex flex-col items-center text-center text-black/70">
-          <div className="text-lg tracking-[0.2em] uppercase">
-            Plan your day today
-          </div>
+        <section className="mt-14 mb-8 flex flex-col items-center text-center">
+          <h2 className="text-sm font-medium tracking-[0.3em] uppercase text-black/40">
+            Intelligent Scheduling
+          </h2>
         </section>
 
-        <section className="flex-1 flex items-center">
-          <div className="w-full max-w-3xl mx-auto rounded-3xl border border-black/10 bg-white/70 backdrop-blur px-6 py-6 shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
-            <div className="text-xs uppercase tracking-[0.35em] text-black/50">
-              Add your tasks
-            </div>
-            <textarea
-              className="mt-3 w-full rounded-2xl border border-black/10 bg-white/80 p-4 text-sm leading-relaxed shadow-inner focus:outline-none focus:ring-2 focus:ring-black/20"
-              placeholder='e.g. "Tomorrow: laundry, write report, book dentist"'
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-            />
-            <div className="mt-4 flex items-center gap-3">
-              <button
-                className="h-9 w-9 rounded-full border border-orange-300 flex items-center justify-center text-orange-500 transition hover:border-orange-400 hover:bg-orange-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-200 disabled:opacity-50"
-                onClick={generatePlan}
-                disabled={loading || !text.trim()}
-                title={!text.trim() ? "Add a plan first" : "Generate plan"}
-                aria-label="Generate plan"
-              >
-                {/* UPDATED: Loading Animation State */}
-                {loading ? (
-                  <ArrowPathIcon className="size-4 animate-spin" />
-                ) : (
-                  <SparklesIcon className="size-4" />
-                )}
-              </button>
-              {msg && <div className="text-xs text-black/60">{msg}</div>}
-            </div>
-
-            {plan && (
-              <div className="mt-4 rounded-2xl border border-black/10 bg-white/70 p-4 space-y-2">
-                <div className="text-xs uppercase tracking-[0.3em] text-black/60">
-                  Preview
+        <section className="flex-1 max-w-2xl w-full mx-auto">
+          <Card className="border-black/5 bg-white/60 backdrop-blur-xl shadow-2xl shadow-black/5 overflow-hidden">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg font-semibold tracking-tight">Daily Input</CardTitle>
+                  <CardDescription>What's on your mind today?</CardDescription>
                 </div>
-                {draftTasks.length === 0 && (
-                  <div className="text-xs text-black/50">
-                    No tasks selected.
-                  </div>
-                )}
-                {draftTasks.map((t, i) => (
-                  <div
-                    key={`${t.title}-${i}`}
-                    className="flex items-center gap-3 rounded-xl border border-black/5 bg-white/60 px-3 py-2 text-xs"
-                  >
-                    <input
-                      className="flex-1 bg-transparent outline-none focus:ring-2 focus:ring-black/20 rounded-md px-1"
-                      value={t.title}
-                      onChange={(e) => {
-                        const next = [...draftTasks];
-                        next[i] = { ...next[i], title: e.target.value };
-                        setDraftTasks(next);
-                      }}
-                      aria-label="Edit task title"
-                    />
-                    <div className="text-[10px] uppercase tracking-[0.2em] text-black/50">
-                      {t.date} {t.start_time} · {t.duration_minutes}m
-                    </div>
-                    <button
-                      className="rounded-full border border-black/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-black/60 transition hover:border-black/60 hover:bg-black hover:text-white"
-                      onClick={() => {
-                        const next = draftTasks.filter((_, idx) => idx !== i);
-                        setDraftTasks(next);
-                      }}
-                      aria-label="Delete task"
-                      title="Delete task"
-                      type="button"
+                {session && (
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={selectedCalendarId}
+                      onValueChange={setSelectedCalendarId}
+                      disabled={calendarsLoading || calendars.length === 0}
                     >
-                      <XMarkIcon className="size-4" />
-                    </button>
-                  </div>
-                ))}
-
-                <button
-                  className="mt-2 h-9 w-9 rounded-full border border-orange-300 flex items-center justify-center text-orange-500 transition hover:border-orange-400 hover:bg-orange-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-200 disabled:opacity-50"
-                  onClick={confirmAndCreate}
-                  disabled={!session || creating || draftTasks.length === 0}
-                  title={
-                    !session ? "Sign in to create Google Calendar events" : ""
-                  }
-                  aria-label="Add to Google Calendar"
-                >
-                  {/* Optional: Add spinner here for creation too if desired */}
-                  {creating ? (
-                    <ArrowPathIcon className="size-4 animate-spin" />
-                  ) : (
-                    <CalendarIcon className="size-4" />
-                  )}
-                </button>
-
-                {!session && (
-                  <div className="text-[10px] uppercase tracking-[0.3em] text-black/40">
-                    Sign in to create events
+                      <SelectTrigger className="h-8 w-[180px] text-[10px] uppercase tracking-wider bg-white/50 border-black/10">
+                        <SelectValue placeholder="Select calendar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {calendars.length === 0 ? (
+                          <SelectItem value="primary">Primary calendar</SelectItem>
+                        ) : (
+                          calendars.map((cal) => (
+                            <SelectItem key={cal.id} value={cal.id}>
+                              {cal.summary}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
               </div>
-            )}
-          </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Textarea
+                className="min-h-[120px] resize-none border-black/5 bg-white/40 focus-visible:ring-primary/20 focus-visible:border-primary/30 text-base placeholder:text-black/20"
+                placeholder='e.g. "Laundry at 10am, 2h focus work on report, book dentist"'
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+              />
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={generatePlan}
+                    disabled={loading || !text.trim()}
+                    className="rounded-full bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 px-6"
+                  >
+                    {loading ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="mr-2 h-4 w-4" />
+                    )}
+                    Generate Plan
+                  </Button>
+                  {msg && <p className="text-xs text-black/50 font-medium italic">{msg}</p>}
+                </div>
+              </div>
+
+              {plan && (
+                <div className="pt-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Separator className="flex-1 bg-black/5" />
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-black/30 font-bold">Preview Plan</span>
+                    <Separator className="flex-1 bg-black/5" />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {draftTasks.length === 0 && (
+                      <div className="py-8 text-center text-sm text-black/30 italic">
+                        No tasks generated.
+                      </div>
+                    )}
+                    {draftTasks.map((t, i) => (
+                      <div
+                        key={`${t.title}-${i}`}
+                        className="group flex items-center gap-3 rounded-2xl border border-black/[0.03] bg-white/40 p-3 transition-all hover:bg-white/80 hover:shadow-sm"
+                      >
+                        <div className="flex-1 space-y-1">
+                          <input
+                            className="w-full bg-transparent font-medium text-sm outline-none focus:ring-1 focus:ring-primary/20 rounded px-1 transition-all"
+                            value={t.title}
+                            onChange={(e) => {
+                              const next = [...draftTasks];
+                              next[i] = { ...next[i], title: e.target.value };
+                              setDraftTasks(next);
+                            }}
+                          />
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="bg-black/5 text-[9px] uppercase tracking-tighter hover:bg-black/10 transition-colors">
+                              {t.start_time}
+                            </Badge>
+                            <span className="text-[10px] text-black/30">•</span>
+                            <span className="text-[10px] text-black/40 font-medium">{t.duration_minutes} min</span>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 text-black/20 hover:text-destructive hover:bg-destructive/5 transition-all"
+                          onClick={() => {
+                            const next = draftTasks.filter((_, idx) => idx !== i);
+                            setDraftTasks(next);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 pt-4 border-t border-black/5 flex justify-end">
+                    <Button
+                      onClick={confirmAndCreate}
+                      disabled={!session || creating || draftTasks.length === 0}
+                      className="rounded-full bg-black text-white hover:bg-black/80 px-6"
+                    >
+                      {creating ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Calendar className="mr-2 h-4 w-4" />
+                      )}
+                      Sync to Google Calendar
+                    </Button>
+                  </div>
+                  
+                  {!session && (
+                    <p className="mt-3 text-center text-[10px] uppercase tracking-[0.2em] text-black/40">
+                      Sign in to enable calendar sync
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </section>
       </div>
 

@@ -2,7 +2,13 @@
 
 import { useMemo } from "react";
 import { Squares2X2Icon } from "@heroicons/react/24/outline";
-import { FireIcon, CheckCircleIcon } from "@heroicons/react/24/solid";
+import { 
+  Flame, 
+  CheckCircle2, 
+  Calendar as CalendarIcon,
+  TrendingUp,
+  Target
+} from "lucide-react";
 import { toISODate } from "@/lib/utils";
 import { getCurrentWeekKeys } from "@/lib/week";
 import { useRoutineStore } from "@/lib/morning-routine-store";
@@ -11,6 +17,11 @@ import BottomBar from "@/components/bottomBar";
 import PageHeader from "@/components/pageHeader";
 import RecordCard from "@/components/recordCard";
 import RecordDotGrid from "@/components/recordDotGrid";
+
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 function dayOfYear(d: Date) {
   const start = new Date(d.getFullYear(), 0, 0);
@@ -37,11 +48,25 @@ export default function UsagePage() {
   }, [todayStart]);
 
   const dots = useMemo(() => {
-    return Array.from({ length: totalDays }).map((_, i) => {
-      const d = new Date(year, 0, 1 + i);
+    const GRID_DAYS = 60;
+    const yearStart = new Date(year, 0, 1);
+    
+    // If today is early in the year (within first 60 days), show first 60 days
+    // Otherwise show the last 60 days ending today
+    let startPoint: Date;
+    if (dayOfYear(todayStart) <= GRID_DAYS) {
+      startPoint = yearStart;
+    } else {
+      startPoint = new Date(todayStart);
+      startPoint.setDate(todayStart.getDate() - (GRID_DAYS - 1));
+    }
+
+    return Array.from({ length: GRID_DAYS }).map((_, i) => {
+      const d = new Date(startPoint);
+      d.setDate(startPoint.getDate() + i);
       return { key: toISODate(d), date: d };
     });
-  }, [totalDays, year]);
+  }, [year, todayStart]);
 
   const planningStats = useMemo(() => {
     const completedDays = Object.values(usageMap).filter(Boolean).length;
@@ -86,92 +111,118 @@ export default function UsagePage() {
   return (
     <main className="min-h-screen relative overflow-hidden bg-[#f8f6f1] text-[#0c0c0c]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,#ffffff_0%,#f8f6f1_55%,#f1efe8_100%)]" />
-      <div className="pointer-events-none absolute inset-0 opacity-80 bg-[radial-gradient(#1a1a1a1a_1px,transparent_1px)] [background-size:20px_20px]" />
+      <div className="pointer-events-none absolute inset-0 opacity-40 bg-[radial-gradient(#1a1a1a1a_1px,transparent_1px)] [background-size:24px_24px]" />
 
       <div className="relative z-10 max-w-5xl mx-auto px-6 pt-10 pb-32">
         <PageHeader
           eyebrow="Records"
           title={String(year)}
-          icon={<Squares2X2Icon className="h-5 w-5" />}
-          right={<div className="text-xs uppercase tracking-[0.2em] text-black/50">{daysLeft} days left</div>}
+          icon={<Squares2X2Icon className="h-5 w-5 text-black/40" />}
+          right={
+            <Badge variant="outline" className="text-[10px] uppercase tracking-[0.2em] border-black/10 text-black/40 font-bold">
+              {daysLeft} days remaining
+            </Badge>
+          }
         />
 
-        <section className="mt-10">
-          <RecordCard
-            eyebrow="planning"
-            title="Daily planning"
-            right={
-              <>
-                <div className="flex items-center gap-1">
-                  {planningStats.streak} <FireIcon className="size-5 text-primary" />
+        <section className="mt-12 space-y-12">
+          {/* Planning Records */}
+          <Card className="border-black/5 bg-white/60 backdrop-blur-xl shadow-2xl shadow-black/5 overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between pb-6">
+              <div className="space-y-1">
+                <div className="text-[10px] uppercase tracking-[0.4em] text-black/30 font-bold flex items-center gap-2">
+                  <CalendarIcon className="h-3 w-3" /> Day Planning
                 </div>
-                <div className="mt-1 flex items-center gap-1">
-                  {planningStats.completedDays} <CheckCircleIcon className="size-5 text-primary" />
+                <CardTitle className="text-2xl font-bold tracking-tight">Consistency Tracker</CardTitle>
+              </div>
+              <div className="flex gap-4">
+                <div className="text-center">
+                  <div className="flex items-center gap-1 text-primary text-lg font-bold">
+                    {planningStats.streak} <Flame className="size-5 fill-current" />
+                  </div>
+                  <div className="text-[9px] uppercase tracking-widest text-black/30 font-bold">Streak</div>
                 </div>
-              </>
-            }
-          >
-            <div className="mb-4 rounded-2xl border border-black/10 bg-white/80 p-3 shadow-inner">
-              <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-black/60">
-                <span>Weekly completion</span>
-                <span>
-                  {planningStats.completionPercent}% ({planningStats.completedThisWeek}/{weeklyTargetDays})
-                </span>
+                <div className="text-center">
+                  <div className="flex items-center gap-1 text-primary text-lg font-bold">
+                    {planningStats.completedDays} <CheckCircle2 className="size-5" />
+                  </div>
+                  <div className="text-[9px] uppercase tracking-widest text-black/30 font-bold">Total</div>
+                </div>
               </div>
-              <div className="mt-2 h-2 w-full overflow-hidden rounded-full border border-black/10 bg-black/5">
-                <div
-                  className="h-full rounded-full bg-primary transition-all"
-                  style={{ width: `${planningStats.completionPercent}%` }}
-                />
+            </CardHeader>
+            <CardContent>
+              <div className="mb-8 p-4 rounded-2xl bg-white/40 border border-black/[0.03]">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-black/40 font-bold">
+                    <Target className="h-3 w-3" /> Weekly Progress
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-bold text-black/50 border-none">
+                    {planningStats.completedThisWeek} / {weeklyTargetDays} DAYS
+                  </Badge>
+                </div>
+                <Progress value={planningStats.completionPercent} className="h-2 bg-black/5" />
               </div>
-            </div>
-            <RecordDotGrid
-              dots={dots}
-              todayStart={todayStart}
-              filledMap={usageMap}
-              filledClassName="h-3 w-3 rounded-full bg-primary transition-colors hover:bg-primary/80"
-              pastClassName="h-0.5 w-3 rounded-full bg-primary/40 transition-colors hover:bg-primary/55"
-            />
-          </RecordCard>
-        </section>
 
-        <section className="mt-10">
-          <RecordCard
-            eyebrow="Morning routine"
-            title="Routine tracker"
-            right={
-              <>
-                <div className="flex items-center gap-1">
-                  {routineStats.streak} <FireIcon className="size-5 text-secondary" />
-                </div>
-                <div className="mt-1 flex items-center gap-1">
-                  {routineStats.completedDays} <CheckCircleIcon className="size-5 text-secondary" />
-                </div>
-              </>
-            }
-          >
-            <div className="mb-4 rounded-2xl border border-black/10 bg-white/80 p-3 shadow-inner">
-              <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-black/60">
-                <span>Weekly completion</span>
-                <span>
-                  {routineStats.completionPercent}% ({routineStats.completedThisWeek}/{weeklyTargetDays})
-                </span>
-              </div>
-              <div className="mt-2 h-2 w-full overflow-hidden rounded-full border border-black/10 bg-black/5">
-                <div
-                  className="h-full rounded-full bg-secondary transition-all"
-                  style={{ width: `${routineStats.completionPercent}%` }}
+              <div className="p-4 rounded-3xl bg-white/60 border border-black/[0.03] shadow-inner">
+                <RecordDotGrid
+                  dots={dots}
+                  todayStart={todayStart}
+                  filledMap={usageMap}
+                  filledClassName="h-3 w-3 rounded-full bg-primary shadow-[0_0_8px_rgba(251,150,110,0.5)] transition-all hover:scale-125"
+                  pastClassName="h-0.5 w-3 rounded-full bg-primary/20 transition-colors hover:bg-primary/40"
                 />
               </div>
-            </div>
-            <RecordDotGrid
-              dots={dots}
-              todayStart={todayStart}
-              filledMap={completionMap}
-              filledClassName="h-3 w-3 rounded-full bg-secondary transition-colors hover:bg-secondary/80"
-              pastClassName="h-0.5 w-3 rounded-full bg-secondary/40 transition-colors hover:bg-secondary/55"
-            />
-          </RecordCard>
+            </CardContent>
+          </Card>
+
+          {/* Routine Records */}
+          <Card className="border-black/5 bg-white/60 backdrop-blur-xl shadow-2xl shadow-black/5 overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between pb-6">
+              <div className="space-y-1">
+                <div className="text-[10px] uppercase tracking-[0.4em] text-black/30 font-bold flex items-center gap-2">
+                  <TrendingUp className="h-3 w-3" /> Morning Routine
+                </div>
+                <CardTitle className="text-2xl font-bold tracking-tight">Ritual Performance</CardTitle>
+              </div>
+              <div className="flex gap-4">
+                <div className="text-center">
+                  <div className="flex items-center gap-1 text-sky-400 text-lg font-bold">
+                    {routineStats.streak} <Flame className="size-5 fill-current" />
+                  </div>
+                  <div className="text-[9px] uppercase tracking-widest text-black/30 font-bold">Streak</div>
+                </div>
+                <div className="text-center">
+                  <div className="flex items-center gap-1 text-sky-400 text-lg font-bold">
+                    {routineStats.completedDays} <CheckCircle2 className="size-5" />
+                  </div>
+                  <div className="text-[9px] uppercase tracking-widest text-black/30 font-bold">Total</div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-8 p-4 rounded-2xl bg-white/40 border border-black/[0.03]">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-black/40 font-bold">
+                    <Target className="h-3 w-3" /> Ritual Mastery
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-bold text-black/50 border-none">
+                    {routineStats.completedThisWeek} / {weeklyTargetDays} DAYS
+                  </Badge>
+                </div>
+                <Progress value={routineStats.completionPercent} className="h-2 bg-black/5" />
+              </div>
+
+              <div className="p-4 rounded-3xl bg-white/60 border border-black/[0.03] shadow-inner">
+                <RecordDotGrid
+                  dots={dots}
+                  todayStart={todayStart}
+                  filledMap={completionMap}
+                  filledClassName="h-3 w-3 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.5)] transition-all hover:scale-125"
+                  pastClassName="h-0.5 w-3 rounded-full bg-sky-400/20 transition-colors hover:bg-sky-400/40"
+                />
+              </div>
+            </CardContent>
+          </Card>
         </section>
       </div>
 
