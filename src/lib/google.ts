@@ -6,6 +6,7 @@ type InsertEventInput = {
   task: PlannedTask;
   accessToken: string;
   timeZone: string;
+  calendarId?: string;
 };
 
 type InsertEventResult = {
@@ -19,6 +20,7 @@ type ListEventsInput = {
   timeMin: string;
   timeMax: string;
   timeZone: string;
+  calendarId?: string;
 };
 
 export type CalendarEvent = {
@@ -40,8 +42,24 @@ type ListEventsResult = {
   error?: string;
 };
 
-const GOOGLE_CALENDAR_EVENTS_ENDPOINT =
-  "https://www.googleapis.com/calendar/v3/calendars/primary/events";
+export type UserCalendar = {
+  id: string;
+  summary: string;
+  primary?: boolean;
+  accessRole?: string;
+};
+
+type ListCalendarsResult = {
+  ok: boolean;
+  calendars?: UserCalendar[];
+  error?: string;
+};
+
+const GOOGLE_CALENDAR_BASE = "https://www.googleapis.com/calendar/v3";
+
+function calendarEventsEndpoint(calendarId: string) {
+  return `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events`;
+}
 
 function addMinutesToDateTime(date: string, time: string, minutes: number) {
   const [year, month, day] = date.split("-").map((value) => Number(value));
@@ -66,7 +84,8 @@ function buildEventsListUrl({
   timeMin,
   timeMax,
   timeZone,
-}: Pick<ListEventsInput, "timeMin" | "timeMax" | "timeZone">) {
+  calendarId = "primary",
+}: Pick<ListEventsInput, "timeMin" | "timeMax" | "timeZone" | "calendarId">) {
   const params = new URLSearchParams({
     singleEvents: "true",
     orderBy: "startTime",
@@ -74,7 +93,40 @@ function buildEventsListUrl({
     timeMax,
     timeZone,
   });
-  return `${GOOGLE_CALENDAR_EVENTS_ENDPOINT}?${params.toString()}`;
+  return `${calendarEventsEndpoint(calendarId)}?${params.toString()}`;
+}
+
+export async function listUserCalendars(accessToken: string): Promise<ListCalendarsResult> {
+  const url = `${GOOGLE_CALENDAR_BASE}/users/me/calendarList`;
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!res.ok) {
+      let errorMessage = `Google Calendar error (${res.status})`;
+      try {
+        const body = await res.json();
+        if (body?.error?.message) errorMessage = body.error.message;
+      } catch {
+        // ignore JSON parsing errors
+      }
+      return { ok: false, error: errorMessage };
+    }
+
+    const data = await res.json();
+    const items: UserCalendar[] = Array.isArray(data?.items)
+      ? data.items.map((item: any) => ({
+          id: item.id,
+          summary: item.summary ?? item.id,
+          primary: item.primary ?? false,
+          accessRole: item.accessRole,
+        }))
+      : [];
+    return { ok: true, calendars: items };
+  } catch (err: any) {
+    return { ok: false, error: err?.message ?? "Failed to reach Google Calendar API" };
+  }
 }
 
 export async function listCalendarEvents({
@@ -82,8 +134,9 @@ export async function listCalendarEvents({
   timeMin,
   timeMax,
   timeZone,
+  calendarId = "primary",
 }: ListEventsInput): Promise<ListEventsResult> {
-  const url = buildEventsListUrl({ timeMin, timeMax, timeZone });
+  const url = buildEventsListUrl({ timeMin, timeMax, timeZone, calendarId });
 
   try {
     const res = await fetch(url, {
@@ -117,6 +170,7 @@ export async function insertCalendarEvent({
   task,
   accessToken,
   timeZone,
+  calendarId = "primary",
 }: InsertEventInput): Promise<InsertEventResult> {
   const { endDate, endTime } = addMinutesToDateTime(
     task.date,
@@ -138,7 +192,7 @@ export async function insertCalendarEvent({
   };
 
   try {
-    const res = await fetch(GOOGLE_CALENDAR_EVENTS_ENDPOINT, {
+    const res = await fetch(calendarEventsEndpoint(calendarId), {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,

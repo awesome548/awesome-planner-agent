@@ -15,6 +15,7 @@ import { PlanSchema } from "@/lib/schemas";
 const CreateCalendarSchema = z.object({
   plan: PlanSchema,
   timeZone: z.string().trim().min(1),
+  calendarId: z.string().trim().min(1).optional(),
 });
 
 export async function POST(req: Request) {
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Invalid request" }, { status: 400 });
     }
 
-    const timeZone = parsedBody.data.timeZone;
+    const { timeZone, calendarId } = parsedBody.data;
     if (!isValidTimeZone(timeZone)) {
       return NextResponse.json({ ok: false, error: "Invalid time zone" }, { status: 400 });
     }
@@ -57,6 +58,7 @@ export async function POST(req: Request) {
       timeMin: dayBounds.timeMin,
       timeMax: dayBounds.timeMax,
       timeZone,
+      calendarId,
     });
 
     if (!eventsResult.ok) {
@@ -76,7 +78,7 @@ export async function POST(req: Request) {
     const results = await tasks.reduce(
       async (accPromise, task) => {
         const acc = await accPromise;
-        const result = await insertCalendarEvent({ task, accessToken, timeZone });
+        const result = await insertCalendarEvent({ task, accessToken, timeZone, calendarId });
         return [...acc, result];
       },
       Promise.resolve([] as Awaited<ReturnType<typeof insertCalendarEvent>>[])

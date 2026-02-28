@@ -20,6 +20,7 @@ import { PlanSchema } from "@/lib/schemas";
 const PlanRequestSchema = z.object({
   text: z.string().trim().min(1),
   timeZone: z.string().trim().min(1),
+  calendarId: z.string().trim().min(1).optional(),
 });
 
 const CREATE_PLAN_SYSTEM_PROMPT =
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Missing OPENAI_API_KEY" }, { status: 500 });
     }
 
-    const { text, timeZone } = parsedRequest.data;
+    const { text, timeZone, calendarId } = parsedRequest.data;
     const tz = timeZone;
     if (!isValidTimeZone(tz)) {
       return NextResponse.json({ ok: false, error: "Invalid time zone" }, { status: 400 });
@@ -63,6 +64,7 @@ export async function POST(req: Request) {
       timeMin: dayBounds.timeMin,
       timeMax: dayBounds.timeMax,
       timeZone: tz,
+      calendarId,
     });
 
     if (!eventsResult.ok) {
