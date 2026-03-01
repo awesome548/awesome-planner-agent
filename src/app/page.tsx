@@ -1,19 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSession, signIn, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import {
   CalendarDaysIcon,
-  UserCircleIcon,
 } from "@heroicons/react/24/outline";
 import { 
   Sparkles, 
   Calendar, 
   Trash2, 
-  Loader2, 
-  ChevronDown,
-  LogOut,
-  LogIn
+  Loader2,
 } from "lucide-react";
 import { useUsageStore } from "@/lib/usage-store";
 import BottomBar from "@/components/bottomBar";
@@ -32,7 +28,6 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
 
 type Task = {
   title: string;
@@ -52,6 +47,7 @@ type UserCalendar = {
 export default function Home() {
   const { data: session } = useSession();
   const [text, setText] = useState("");
+
   const [plan, setPlan] = useState<{ tasks: Task[] } | null>(null);
   const [draftTasks, setDraftTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
@@ -179,31 +175,11 @@ export default function Home() {
           eyebrow="Day planner"
           title={todayLabel}
           icon={<CalendarDaysIcon className="size-6 text-primary" />}
-          right={
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full h-10 w-10 border border-black/5 bg-white/50 backdrop-blur-sm overflow-hidden hover:bg-white/80 transition-all"
-              onClick={() => (session ? signOut() : signIn("google"))}
-              aria-label={session ? "Sign out" : "Sign in"}
-              title={session ? "Sign out" : "Sign in"}
-            >
-              {session?.user?.image ? (
-                <img
-                  src={session.user.image}
-                  alt={session.user.name || "User"}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <UserCircleIcon className="h-6 w-6 text-black/40" />
-              )}
-            </Button>
-          }
         />
 
         <WeekBar
           statusMap={usageMap}
-          usedClassName="h-3 w-3 rounded-full bg-primary shadow-[0_0_8px_rgba(251,150,110,0.5)]"
+          usedClassName="h-3 w-3 rounded-full bg-primary shadow-[0_0_8px_rgba(92,107,192,0.4)]"
           pastClassName="h-0.5 w-3 rounded-full bg-primary/30"
         />
 
@@ -213,7 +189,7 @@ export default function Home() {
           </h2>
         </section>
 
-        <section className="flex-1 max-w-2xl w-full mx-auto">
+        <section className="flex-1 w-full mx-auto">
           <Card className="border-black/5 bg-white/60 backdrop-blur-xl shadow-2xl shadow-black/5 overflow-hidden">
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">

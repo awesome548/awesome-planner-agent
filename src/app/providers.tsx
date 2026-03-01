@@ -4,6 +4,8 @@ import { SessionProvider } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import StoreInitializer from "@/components/storeInitializer";
+import SupabaseSync from "@/components/supabaseSync";
+import SupabaseAuthProvider from "@/components/supabaseAuthProvider";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -19,16 +21,22 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <SessionProvider>
+      {/* Must be outside SupabaseAuthProvider — these boot the auth store.
+          If placed inside, the auth gate blocks them from mounting, causing
+          loading to never resolve (deadlock). */}
       <StoreInitializer />
-      <div className="page-frame">
-        <div
-          aria-hidden="true"
-          className={`page-transition-scrim ${isTransitioning ? "is-active" : ""}`}
-        />
-        <div key={transitionKey} className="page-transition-content">
-          {children}
+      <SupabaseSync />
+      <SupabaseAuthProvider>
+        <div className="page-frame">
+          <div
+            aria-hidden="true"
+            className={`page-transition-scrim ${isTransitioning ? "is-active" : ""}`}
+          />
+          <div key={transitionKey} className="page-transition-content">
+            {children}
+          </div>
         </div>
-      </div>
+      </SupabaseAuthProvider>
     </SessionProvider>
   );
 }

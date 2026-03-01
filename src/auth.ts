@@ -15,6 +15,7 @@ type GoogleTokenResponse = {
 type ExtendedToken = JWT & {
   access_token?: string;
   refresh_token?: string;
+  id_token?: string;
   expires_at?: number;
   error?: string;
 };
@@ -76,6 +77,7 @@ export const authOptions: NextAuthOptions = {
       if (account) {
         extended.access_token = account.access_token;
         extended.refresh_token = account.refresh_token ?? extended.refresh_token;
+        extended.id_token = account.id_token;
         extended.expires_at = account.expires_at;
         return extended;
       }
@@ -89,6 +91,7 @@ export const authOptions: NextAuthOptions = {
       const extended = token as ExtendedToken;
       (session as any).access_token = extended.access_token;
       (session as any).refresh_token = extended.refresh_token;
+      (session as any).id_token = extended.id_token;
       (session as any).expires_at = extended.expires_at;
       (session as any).token_error = extended.error;
       return session;

@@ -1,6 +1,11 @@
 import { create } from "zustand";
 import { getSupabaseClient } from "@/lib/supabase";
+import { useAuthStore } from "@/lib/auth-store";
 import { toISODate } from "@/lib/utils";
+
+function getUserId(): string | undefined {
+  return useAuthStore.getState().user?.id;
+}
 
 const TABLE = "usage_records";
 
@@ -16,6 +21,7 @@ interface UsageStore {
 
   // Actions
   initialize: () => Promise<void>;
+  reinitialize: () => Promise<void>;
   markUsed: (date?: Date) => Promise<void>;
   toggleUsed: (date: Date) => Promise<void>;
 }
@@ -26,7 +32,7 @@ export const useUsageStore = create<UsageStore>((set, get) => ({
   loading: true,
   initialized: false,
 
-  // Initialize - fetch all usage data once
+  // Initialize - fetch all usage data once (idempotent)
   initialize: async () => {
     if (typeof window === "undefined") return;
     if (get().initialized) return;
@@ -55,45 +61,55 @@ export const useUsageStore = create<UsageStore>((set, get) => ({
     }
   },
 
+  // Force re-fetch (e.g. after auth state change)
+  reinitialize: async () => {
+    set({ initialized: false, loading: true });
+    await get().initialize();
+  },
+
   // Mark a date as used
   markUsed: async (date = new Date()) => {
     if (typeof window === "undefined") return;
 
+    const userId = getUserId();
+    if (!userId) return;
+
     const { usageMap } = get();
     const dateKey = toISODate(date);
 
-    set({
-      usageMap: {
-        ...usageMap,
-        [dateKey]: true,
-      },
-    });
+    set({ usageMap: { ...usageMap, [dateKey]: true } });
 
     const supabase = getSupabaseClient();
-    await supabase.from(TABLE).upsert({ used_on: dateKey }, { onConflict: "used_on" });
+    await supabase
+      .from(TABLE)
+      .upsert({ user_id: userId, used_on: dateKey }, { onConflict: "user_id,used_on" });
   },
 
   // Toggle usage for a date (for manual editing)
   toggleUsed: async (date: Date) => {
     if (typeof window === "undefined") return;
 
+    const userId = getUserId();
+    if (!userId) return;
+
     const { usageMap } = get();
     const dateKey = toISODate(date);
     const newValue = !usageMap[dateKey];
 
-    set({
-      usageMap: {
-        ...usageMap,
-        [dateKey]: newValue,
-      },
-    });
+    set({ usageMap: { ...usageMap, [dateKey]: newValue } });
 
     const supabase = getSupabaseClient();
 
     if (newValue) {
-      await supabase.from(TABLE).upsert({ used_on: dateKey }, { onConflict: "used_on" });
+      await supabase
+        .from(TABLE)
+        .upsert({ user_id: userId, used_on: dateKey }, { onConflict: "user_id,used_on" });
     } else {
-      await supabase.from(TABLE).delete().eq("used_on", dateKey);
+      await supabase
+        .from(TABLE)
+        .delete()
+        .eq("user_id", userId)
+        .eq("used_on", dateKey);
     }
   },
 }));

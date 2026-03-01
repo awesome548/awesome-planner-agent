@@ -14,6 +14,32 @@ export function getSupabaseClient() {
     );
   }
 
-  cachedClient = createClient(url, anonKey);
+  // persistSession + autoRefreshToken are true by default in browser environments.
+  // The session is stored in localStorage under sb-<project>-auth-token.
+  cachedClient = createClient(url, anonKey, {
+    auth: { persistSession: true, autoRefreshToken: true },
+  });
   return cachedClient;
+}
+
+/** Returns the current Supabase Auth user UUID, or null if not signed in. */
+export async function getSupabaseUserId(): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  const { data } = await getSupabaseClient().auth.getUser();
+  return data.user?.id ?? null;
+}
+
+/**
+ * Creates a Supabase Auth session from a Google ID token obtained via NextAuth.
+ * The session (+ refresh token) is automatically persisted in localStorage.
+ */
+export async function signInWithGoogleIdToken(idToken: string): Promise<void> {
+  const { error } = await getSupabaseClient().auth.signInWithIdToken({
+    provider: "google",
+    token: idToken,
+  });
+  if (error) {
+    console.error("[supabase] signInWithIdToken error:", error.message);
+    throw error;
+  }
 }

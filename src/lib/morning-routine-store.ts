@@ -1,6 +1,11 @@
 import { create } from "zustand";
 import { getSupabaseClient } from "@/lib/supabase";
+import { useAuthStore } from "@/lib/auth-store";
 import { toISODate } from "@/lib/utils";
+
+function getUserId(): string | undefined {
+  return useAuthStore.getState().user?.id;
+}
 
 const ROUTINE_TABLE = "morning_routine_actions";
 const COMPLETION_TABLE = "morning_routine_completions";
@@ -30,6 +35,7 @@ interface RoutineStore {
 
   // Actions
   initialize: () => Promise<void>;
+  reinitialize: () => Promise<void>;
   addAction: (title: string) => Promise<void>;
   updateAction: (action: RoutineAction) => Promise<void>;
   deleteAction: (id: string) => Promise<void>;
@@ -48,7 +54,7 @@ export const useRoutineStore = create<RoutineStore>((set, get) => ({
   loading: true,
   initialized: false,
 
-  // Initialize - fetch all data once
+  // Initialize - fetch all data once (idempotent)
   initialize: async () => {
     if (typeof window === "undefined") return;
     if (get().initialized) return;
@@ -86,9 +92,18 @@ export const useRoutineStore = create<RoutineStore>((set, get) => ({
     }
   },
 
+  // Force re-fetch (e.g. after auth state change)
+  reinitialize: async () => {
+    set({ initialized: false, loading: true, actions: [], actionRecords: {}, completionMap: {} });
+    await get().initialize();
+  },
+
   // Add new action
   addAction: async (title: string) => {
     if (typeof window === "undefined" || !title.trim()) return;
+
+    const userId = getUserId();
+    if (!userId) return;
 
     const { actions } = get();
     const newAction: RoutineAction = {
@@ -100,42 +115,60 @@ export const useRoutineStore = create<RoutineStore>((set, get) => ({
     set({ actions: [...actions, newAction] });
 
     const supabase = getSupabaseClient();
-    await supabase.from(ROUTINE_TABLE).upsert(newAction, { onConflict: "id" });
+    await supabase
+      .from(ROUTINE_TABLE)
+      .upsert({ ...newAction, user_id: userId }, { onConflict: "id" });
   },
 
   // Update action
   updateAction: async (action: RoutineAction) => {
     if (typeof window === "undefined") return;
 
+    const userId = getUserId();
+    if (!userId) return;
+
     const { actions } = get();
     const updated = actions.map((a) => (a.id === action.id ? action : a));
     set({ actions: updated });
 
     const supabase = getSupabaseClient();
-    await supabase.from(ROUTINE_TABLE).upsert(action, { onConflict: "id" });
+    await supabase
+      .from(ROUTINE_TABLE)
+      .upsert({ ...action, user_id: userId }, { onConflict: "id" });
   },
 
   // Delete action
   deleteAction: async (id: string) => {
     if (typeof window === "undefined") return;
 
+    const userId = getUserId();
+    if (!userId) return;
+
     const { actions, actionRecords } = get();
     const filtered = actions.filter((a) => a.id !== id);
     const reordered = filtered.map((a, index) => ({ ...a, position: index }));
 
-    const { [id]: removed, ...remainingRecords } = actionRecords;
+    const { [id]: _removed, ...remainingRecords } = actionRecords;
     set({ actions: reordered, actionRecords: remainingRecords });
 
     const supabase = getSupabaseClient();
     await Promise.all([
-      supabase.from(ROUTINE_TABLE).delete().eq("id", id),
-      supabase.from(ROUTINE_TABLE).upsert(reordered, { onConflict: "id" }),
+      supabase.from(ROUTINE_TABLE).delete().eq("id", id).eq("user_id", userId),
+      supabase
+        .from(ROUTINE_TABLE)
+        .upsert(
+          reordered.map((a) => ({ ...a, user_id: userId })),
+          { onConflict: "id" }
+        ),
     ]);
   },
 
   // Reorder actions
   reorderActions: async (startIndex: number, endIndex: number) => {
     if (typeof window === "undefined") return;
+
+    const userId = getUserId();
+    if (!userId) return;
 
     const { actions } = get();
     const reordered = [...actions];
@@ -146,12 +179,20 @@ export const useRoutineStore = create<RoutineStore>((set, get) => ({
     set({ actions: normalized });
 
     const supabase = getSupabaseClient();
-    await supabase.from(ROUTINE_TABLE).upsert(normalized, { onConflict: "id" });
+    await supabase
+      .from(ROUTINE_TABLE)
+      .upsert(
+        normalized.map((a) => ({ ...a, user_id: userId })),
+        { onConflict: "id" }
+      );
   },
 
   // Toggle action completion
   toggleActionCompletion: async (actionId: string, date = new Date()) => {
     if (typeof window === "undefined") return;
+
+    const userId = getUserId();
+    if (!userId) return;
 
     const { actionRecords } = get();
     const existing = actionRecords[actionId];
@@ -165,37 +206,36 @@ export const useRoutineStore = create<RoutineStore>((set, get) => ({
       completed: newCompleted,
     };
 
-    set({
-      actionRecords: {
-        ...actionRecords,
-        [actionId]: updated,
-      },
-    });
+    set({ actionRecords: { ...actionRecords, [actionId]: updated } });
 
     const supabase = getSupabaseClient();
     await supabase
       .from(ACTION_RECORDS_TABLE)
-      .upsert(updated, { onConflict: "action_id,completed_on" });
+      .upsert(
+        { ...updated, user_id: userId },
+        { onConflict: "user_id,action_id,completed_on" }
+      );
   },
 
   // Set day completion
   setDayCompletion: async (date: Date, completed: boolean) => {
     if (typeof window === "undefined") return;
 
+    const userId = getUserId();
+    if (!userId) return;
+
     const { completionMap } = get();
     const dateKey = toISODate(date);
 
-    set({
-      completionMap: {
-        ...completionMap,
-        [dateKey]: completed,
-      },
-    });
+    set({ completionMap: { ...completionMap, [dateKey]: completed } });
 
     const supabase = getSupabaseClient();
     await supabase
       .from(COMPLETION_TABLE)
-      .upsert({ completed_on: dateKey, completed }, { onConflict: "completed_on" });
+      .upsert(
+        { user_id: userId, completed_on: dateKey, completed },
+        { onConflict: "user_id,completed_on" }
+      );
   },
 
   // Mark entire day as complete
