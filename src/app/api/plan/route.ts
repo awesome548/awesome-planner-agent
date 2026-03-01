@@ -4,23 +4,28 @@ import { z } from "zod";
 import { getServerSession } from "next-auth";
 import { zodTextFormat } from "openai/helpers/zod";
 import { authOptions } from "@/auth";
-import {
-  findConflicts,
-  getDayBoundsUtc,
-  getLocalDateString,
-  getLocalDateTimeLabel,
-  isValidTimeZone,
-  toBusyIntervals,
-} from "@/lib/calendar";
+import { findConflicts } from "@/lib/calendar";
 import { env } from "@/lib/env";
-import { listCalendarEvents } from "@/lib/google";
-import { fetchPlannerRulesFromNotion } from "@/lib/notion";
 import { PlanSchema } from "@/lib/schemas";
 
-const PlanRequestSchema = z.object({
+const OPENAI_MODEL = env.OPENAI_MODEL ?? "gpt-5-mini-2025-08-07";
+
+const GenerateRequestSchema = z.object({
   text: z.string().trim().min(1),
   timeZone: z.string().trim().min(1),
-  calendarId: z.string().trim().min(1).optional(),
+  today: z.string(),
+  nowLocal: z.string(),
+  busySummary: z.array(
+    z.object({ start: z.string(), end: z.string(), title: z.string() })
+  ),
+  busyIntervalsIso: z.array(
+    z.object({
+      startUtc: z.string(),
+      endUtc: z.string(),
+      summary: z.string().nullable(),
+    })
+  ),
+  notionRules: z.string(),
 });
 
 const CREATE_PLAN_SYSTEM_PROMPT =
@@ -32,87 +37,49 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Not signed in" }, { status: 401 });
   }
 
-  const accessToken = (session as any).access_token as string | undefined;
-  if (!accessToken) {
+  if (!env.OPENAI_API_KEY) {
     return NextResponse.json(
-      { ok: false, error: "Missing Google access token" },
-      { status: 401 }
+      { ok: false, error: "Missing OPENAI_API_KEY" },
+      { status: 500 }
     );
   }
 
   try {
-    const parsedRequest = PlanRequestSchema.safeParse(await req.json());
+    const parsedRequest = GenerateRequestSchema.safeParse(await req.json());
     if (!parsedRequest.success) {
       return NextResponse.json({ ok: false, error: "Invalid request" }, { status: 400 });
     }
 
-    if (!env.OPENAI_API_KEY) {
-      return NextResponse.json({ ok: false, error: "Missing OPENAI_API_KEY" }, { status: 500 });
-    }
-
-    const { text, timeZone, calendarId } = parsedRequest.data;
-    const tz = timeZone;
-    if (!isValidTimeZone(tz)) {
-      return NextResponse.json({ ok: false, error: "Invalid time zone" }, { status: 400 });
-    }
-    const today = getLocalDateString(tz);
-    const nowLocal = getLocalDateTimeLabel(tz);
-    const dayBounds = getDayBoundsUtc(today, tz);
-
-    const eventsResult = await listCalendarEvents({
-      accessToken,
-      timeMin: dayBounds.timeMin,
-      timeMax: dayBounds.timeMax,
-      timeZone: tz,
-      calendarId,
-    });
-
-    if (!eventsResult.ok) {
-      return NextResponse.json(
-        { ok: false, error: eventsResult.error ?? "Failed to load calendar events" },
-        { status: 502 }
-      );
-    }
-
-    const busyIntervals = toBusyIntervals(eventsResult.events ?? [], tz);
-    const timeFormatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: tz,
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-    const busySummary = busyIntervals.map((interval) => ({
-      start: timeFormatter.format(interval.startUtc),
-      end: timeFormatter.format(interval.endUtc),
-      title: interval.summary ?? "Busy",
-    }));
+    const { text, timeZone, today, nowLocal, busySummary, busyIntervalsIso, notionRules } =
+      parsedRequest.data;
 
     const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
-    const notionRules = await fetchPlannerRulesFromNotion();
+
     const promptContent = `User input:\n${text}\n\nToday (local to user): ${nowLocal}\n\nScheduling rule: Only schedule tasks for ${today}. Consider current local time and plan events ahead. Do not schedule any task in the past.\n\nExisting busy times (local):\n${JSON.stringify(
       busySummary
-    )}\n\nDo not schedule tasks overlapping those busy times.\n\nPlanner rules (from Notion):\n${notionRules}`
+    )}\n\nDo not schedule tasks overlapping those busy times.\n\nPlanner rules (from Notion):\n${notionRules}`;
+
+    const reasoningEffort = env.OPENAI_REASONING_EFFORT;
     const response = await openai.responses.create({
-      model: "gpt-5-mini-2025-08-07",
+      model: OPENAI_MODEL,
       input: [
-        {
-          role: "system",
-          content: CREATE_PLAN_SYSTEM_PROMPT,
-        },
-        {
-          role: "user",
-          content: promptContent,
-        },
+        { role: "system", content: CREATE_PLAN_SYSTEM_PROMPT },
+        { role: "user", content: promptContent },
       ],
-      text: {
-        format: zodTextFormat(PlanSchema, "plan"),
-      },
+      text: { format: zodTextFormat(PlanSchema, "plan") },
+      ...(reasoningEffort ? { reasoning: { effort: reasoningEffort } } : {}),
     });
 
     const json = response.output_text ? JSON.parse(response.output_text) : null;
     const parsedPlan = PlanSchema.parse(json);
 
-    const conflicts = findConflicts(parsedPlan.tasks, busyIntervals, tz);
+    const busyIntervals = busyIntervalsIso.map((interval) => ({
+      startUtc: new Date(interval.startUtc),
+      endUtc: new Date(interval.endUtc),
+      summary: interval.summary ?? undefined,
+    }));
+
+    const conflicts = findConflicts(parsedPlan.tasks, busyIntervals, timeZone);
     const warning =
       conflicts.length > 0
         ? "Generated plan includes overlaps with existing calendar events."

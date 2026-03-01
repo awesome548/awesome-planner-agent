@@ -13,6 +13,8 @@ const normalizeEnv = (value?: string) => {
 
 const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
+  OPENAI_MODEL: z.string().optional(),
+  OPENAI_REASONING_EFFORT: z.enum(["low", "medium", "high"]).optional(),
   NOTION_API_KEY: z.string().optional(),
   NOTION_PAGE_ID: z.string().optional(),
 
@@ -24,6 +26,8 @@ const envSchema = z.object({
 
 export const env = envSchema.parse({
   OPENAI_API_KEY: normalizeEnv(process.env.OPENAI_API_KEY),
+  OPENAI_MODEL: normalizeEnv(process.env.OPENAI_MODEL),
+  OPENAI_REASONING_EFFORT: normalizeEnv(process.env.OPENAI_REASONING_EFFORT),
   NOTION_API_KEY: normalizeEnv(process.env.NOTION_API_KEY),
   NOTION_PAGE_ID: normalizeEnv(process.env.NOTION_PAGE_ID),
 

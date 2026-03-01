@@ -96,25 +96,45 @@ export default function Home() {
     setPlan(null);
     try {
       const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const res = await fetch("/api/plan", {
+
+      // Phase 1: fetch calendar events + Notion rules (fast, ~1–3s)
+      setMsg("Fetching calendar events…");
+      const prepareRes = await fetch("/api/plan/prepare", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, timeZone, calendarId: selectedCalendarId }),
+        body: JSON.stringify({ timeZone, calendarId: selectedCalendarId }),
       });
-
-      const data = await res.json();
-
-      if (!res.ok || !data?.ok) {
-        setMsg(data?.error || "Failed to generate plan");
+      const prepareData = await prepareRes.json();
+      if (!prepareRes.ok || !prepareData?.ok) {
+        setMsg(prepareData?.error || "Failed to fetch schedule");
         return;
       }
 
-      setPlan(data.plan);
-      setDraftTasks(data.plan?.tasks ?? []);
-      setMsg(
-        data?.warning ||
-          "Plan generated. Review and create events."
-      );
+      // Phase 2: generate plan with OpenAI (slow, ~10–30s)
+      // Regular fetch resolves at the network layer — safe across tab switches.
+      setMsg("Generating plan…");
+      const generateRes = await fetch("/api/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          timeZone,
+          today: prepareData.today,
+          nowLocal: prepareData.nowLocal,
+          busySummary: prepareData.busySummary,
+          busyIntervalsIso: prepareData.busyIntervalsIso,
+          notionRules: prepareData.notionRules,
+        }),
+      });
+      const generateData = await generateRes.json();
+      if (!generateRes.ok || !generateData?.ok) {
+        setMsg(generateData?.error || "Failed to generate plan");
+        return;
+      }
+
+      setPlan(generateData.plan);
+      setDraftTasks(generateData.plan?.tasks ?? []);
+      setMsg(generateData.warning || "Plan generated. Review and create events.");
       await markUsed();
     } catch {
       setMsg("Network error. Please try again.");
