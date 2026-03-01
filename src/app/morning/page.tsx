@@ -30,7 +30,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 
-const HOLD_DURATION_MS = 2000;
+const HOLD_DURATION_MS = 1500;
 
 export default function MorningRoutinePage() {
   const [titleInput, setTitleInput] = useState("");
@@ -87,7 +87,7 @@ export default function MorningRoutinePage() {
 
   const upcomingActions = useMemo(() => {
     if (!currentAction) return [];
-    return actions.slice(currentIndex + 1, currentIndex + 4);
+    return actions.slice(currentIndex + 1, currentIndex + 2);
   }, [actions, currentAction, currentIndex]);
 
   useEffect(() => {
@@ -205,11 +205,11 @@ export default function MorningRoutinePage() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#ffffff_0%,_#f8f6f1_55%,_#f1efe8_100%)]" />
       <div className="pointer-events-none absolute inset-0 opacity-40 bg-[radial-gradient(#1a1a1a1a_1px,transparent_1px)] [background-size:24px_24px]" />
 
-      <div className="relative z-10 max-w-5xl mx-auto px-6 pt-10 pb-32">
+      <div className="relative z-10 max-w-4xl mx-auto px-6 pt-10 pb-32">
         <PageHeader
           eyebrow="Morning routine"
           title="Flow, focus, finish strong"
-          icon={<SunIcon className="size-6 text-sky-500" />}
+          icon={<SunIcon className="size-6 text-secondary" />}
           right={
             <Badge variant="outline" className="text-[10px] uppercase tracking-[0.2em] border-black/10 text-black/40">
               {actions.length} actions
@@ -219,8 +219,8 @@ export default function MorningRoutinePage() {
 
         <WeekBar
           statusMap={completionMap}
-          usedClassName="h-3 w-3 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.5)]"
-          pastClassName="h-0.5 w-3 rounded-full bg-sky-400/30"
+          usedClassName="h-3 w-3 rounded-full bg-secondary shadow-[0_0_8px_rgba(38,166,154,0.4)]"
+          pastClassName="h-0.5 w-3 rounded-full bg-secondary/30"
         />
 
         <section className="mt-12 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
@@ -353,8 +353,8 @@ export default function MorningRoutinePage() {
                 {completedToday ? (
                   <div className="py-8 space-y-3">
                     <div className="flex justify-center">
-                      <div className="h-16 w-16 rounded-full bg-sky-50 flex items-center justify-center">
-                        <CheckCircle2 className="h-8 w-8 text-sky-500" />
+                      <div className="h-16 w-16 rounded-full bg-secondary/10 flex items-center justify-center">
+                        <CheckCircle2 className="h-8 w-8 text-secondary" />
                       </div>
                     </div>
                     <p className="text-lg font-semibold tracking-tight">Morning Completed</p>
@@ -364,7 +364,7 @@ export default function MorningRoutinePage() {
                   <div className="py-6 space-y-4">
                     <Button
                       size="lg"
-                      className="w-full h-20 rounded-3xl bg-sky-400 hover:bg-sky-500 text-white shadow-xl shadow-sky-200 transition-all active:scale-[0.98] text-lg font-semibold tracking-wide"
+                      className="w-full h-20 rounded-3xl bg-secondary hover:bg-secondary/90 text-white shadow-xl shadow-secondary/20 transition-all active:scale-[0.98] text-lg font-semibold tracking-wide"
                       onClick={() => setRunnerOpen(true)}
                       disabled={actions.length === 0}
                     >
@@ -409,14 +409,14 @@ export default function MorningRoutinePage() {
       <BottomBar active="morning" />
 
       <Dialog open={runnerOpen} onOpenChange={setRunnerOpen}>
-        <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden border-none bg-transparent shadow-none">
-          <div className="flex-1 flex flex-col bg-[#f8f6f1]/95 backdrop-blur-2xl p-8 rounded-[40px] m-4 shadow-2xl border border-white/50">
-            <DialogHeader className="flex flex-row items-center justify-between mb-12">
+        <DialogContent className="max-w-4xl w-full h-full sm:h-[90vh] flex flex-col p-0 overflow-hidden border-none bg-transparent shadow-none">
+          <div className="flex-1 flex flex-col bg-[#f8f6f1]/95 backdrop-blur-2xl p-6 sm:p-8 rounded-none sm:rounded-[40px] sm:m-4 shadow-2xl border border-white/50">
+            <DialogHeader className="flex flex-row items-center justify-between mb-6 sm:mb-12">
               <div className="space-y-1">
-                <DialogTitle className="text-xs uppercase tracking-[0.4em] text-black/30 font-bold">
+                <DialogTitle className="text-[10px] uppercase tracking-[0.4em] text-black/30 font-bold">
                   Morning Runner
                 </DialogTitle>
-                <div className="text-2xl font-bold tracking-tight">
+                <div className="text-xl sm:text-2xl font-bold tracking-tight">
                   {now.toLocaleTimeString(undefined, {
                     hour: "2-digit",
                     minute: "2-digit",
@@ -433,73 +433,73 @@ export default function MorningRoutinePage() {
               </Button>
             </DialogHeader>
 
-            <div className="flex-1 flex flex-col space-y-12 overflow-y-auto pr-2">
-              <div className="space-y-4 text-center">
-                <Badge variant="outline" className="px-4 py-1 text-[10px] uppercase tracking-[0.3em] border-sky-200 text-sky-600 bg-sky-50 font-bold">
-                  Current Task • {currentIndex + 1} of {actions.length}
+            <div className="flex-1 flex flex-col space-y-6 sm:space-y-12 overflow-y-auto">
+              <div className="space-y-2 sm:space-y-4 text-center">
+                <Badge variant="outline" className="px-3 py-0.5 text-[9px] uppercase tracking-[0.3em] border-secondary/20 text-secondary bg-secondary/10 font-bold">
+                  Step {currentIndex + 1} of {actions.length}
                 </Badge>
-                <h2 className="text-5xl font-bold tracking-tight leading-tight px-4">
+                <h2 className="text-3xl sm:text-5xl font-bold tracking-tight leading-tight px-2">
                   {currentAction ? currentAction.title : "All Completed"}
                 </h2>
-                <div className="flex items-center justify-center gap-2 text-2xl font-mono text-black/40">
-                  <Clock className="h-6 w-6" /> {formatRemaining(remainingSeconds)}
+                <div className="flex items-center justify-center gap-2 text-xl sm:text-2xl font-mono text-black/40">
+                  <Clock className="h-5 w-5 sm:h-6 sm:w-6" /> {formatRemaining(remainingSeconds)}
                 </div>
               </div>
 
-              <div className="grid gap-6 lg:grid-cols-2">
-                <Card className="border-black/5 bg-white/40 shadow-sm rounded-3xl overflow-hidden">
-                  <CardContent className="p-6">
-                    <div className="text-[10px] uppercase tracking-[0.2em] font-bold text-black/30 mb-4">Up Next</div>
-                    <div className="space-y-3">
+              <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+                <Card className="border-black/5 bg-white/40 shadow-sm rounded-2xl sm:rounded-3xl overflow-hidden">
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="text-[9px] uppercase tracking-[0.2em] font-bold text-black/30 mb-2 sm:mb-4">Up Next</div>
+                    <div className="space-y-2">
                       {upcomingActions.length > 0 ? (
                         upcomingActions.map((action, idx) => (
                           <div key={action.id} className="flex items-center justify-between py-1">
-                            <span className="font-medium text-black/70">{action.title}</span>
-                            <Badge variant="outline" className="text-[9px] text-black/20 font-bold border-none">STEP {currentIndex + idx + 2}</Badge>
+                            <span className="font-medium text-sm sm:text-base text-black/70 truncate mr-2">{action.title}</span>
+                            <Badge variant="outline" className="text-[8px] sm:text-[9px] text-black/20 font-bold border-none shrink-0">STEP {currentIndex + 2}</Badge>
                           </div>
                         ))
                       ) : (
-                        <p className="text-sm italic text-black/30">Finish line ahead</p>
+                        <p className="text-xs sm:text-sm italic text-black/30">Finish line ahead</p>
                       )}
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="border-black/5 bg-white/40 shadow-sm rounded-3xl overflow-hidden flex flex-col justify-center">
-                  <CardContent className="p-8 text-center space-y-4">
-                    <div className="text-[10px] uppercase tracking-[0.2em] font-bold text-black/30 mb-2">Hold to proceed</div>
-                    <div className="relative h-24 w-24 mx-auto">
+                <Card className="border-black/5 bg-white/40 shadow-sm rounded-2xl sm:rounded-3xl overflow-hidden flex flex-col justify-center">
+                  <CardContent className="p-4 sm:p-8 text-center space-y-3 sm:space-y-4">
+                    <div className="text-[9px] uppercase tracking-[0.2em] font-bold text-black/30">Hold to proceed</div>
+                    <div className="relative h-20 w-20 sm:h-24 sm:w-24 mx-auto">
                       <svg className="h-full w-full -rotate-90">
                         <circle
-                          cx="48"
-                          cy="48"
-                          r="44"
+                          cx="50%"
+                          cy="50%"
+                          r="44%"
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="8"
                           className="text-black/5"
                         />
                         <circle
-                          cx="48"
-                          cy="48"
-                          r="44"
+                          cx="50%"
+                          cy="50%"
+                          r="44%"
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="8"
-                          strokeDasharray={276}
-                          strokeDashoffset={276 - (276 * holdProgress) / 100}
-                          className="text-sky-400 transition-all duration-75"
+                          strokeDasharray="100%"
+                          strokeDashoffset={`${100 - holdProgress}%`}
+                          className="text-secondary transition-all duration-75"
                         />
                       </svg>
                       <Button
-                        className="absolute inset-2 rounded-full bg-white shadow-lg border-none hover:bg-sky-50 transition-colors select-none touch-none"
+                        className="absolute inset-1.5 sm:inset-2 rounded-full bg-white shadow-lg border-none hover:bg-secondary/5 transition-colors select-none touch-none"
                         onPointerDown={handleHoldStart}
                         onPointerUp={cancelHold}
                         onPointerLeave={cancelHold}
                         onPointerCancel={cancelHold}
                         disabled={actions.length === 0 || !currentAction}
                       >
-                        <CheckCircle2 className={`h-8 w-8 transition-colors ${holdProgress > 0 ? 'text-sky-500' : 'text-black/20'}`} />
+                        <CheckCircle2 className={`h-6 w-6 sm:h-8 sm:w-8 transition-colors ${holdProgress > 0 ? 'text-secondary' : 'text-black/20'}`} />
                       </Button>
                     </div>
                   </CardContent>
@@ -507,7 +507,7 @@ export default function MorningRoutinePage() {
               </div>
             </div>
 
-            <div className="mt-8">
+            <div className="mt-6 sm:mt-8">
               <Progress value={((currentIndex + 1) / actions.length) * 100} className="h-1 bg-black/5" />
             </div>
           </div>

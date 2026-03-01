@@ -113,7 +113,7 @@ export default function UsagePage() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,#ffffff_0%,#f8f6f1_55%,#f1efe8_100%)]" />
       <div className="pointer-events-none absolute inset-0 opacity-40 bg-[radial-gradient(#1a1a1a1a_1px,transparent_1px)] [background-size:24px_24px]" />
 
-      <div className="relative z-10 max-w-5xl mx-auto px-6 pt-10 pb-32">
+      <div className="relative z-10 max-w-4xl mx-auto px-6 pt-10 pb-32">
         <PageHeader
           eyebrow="Records"
           title={String(year)}
@@ -160,7 +160,7 @@ export default function UsagePage() {
                     {planningStats.completedThisWeek} / {weeklyTargetDays} DAYS
                   </Badge>
                 </div>
-                <Progress value={planningStats.completionPercent} className="h-2 bg-black/5" />
+                <Progress value={planningStats.completionPercent} className="h-2 bg-primary/10" indicatorClassName="bg-primary" />
               </div>
 
               <div className="p-4 rounded-3xl bg-white/60 border border-black/[0.03] shadow-inner">
@@ -168,7 +168,7 @@ export default function UsagePage() {
                   dots={dots}
                   todayStart={todayStart}
                   filledMap={usageMap}
-                  filledClassName="h-3 w-3 rounded-full bg-primary shadow-[0_0_8px_rgba(251,150,110,0.5)] transition-all hover:scale-125"
+                  filledClassName="h-3 w-3 rounded-full bg-primary shadow-[0_0_8px_rgba(92,107,192,0.4)] transition-all hover:scale-125"
                   pastClassName="h-0.5 w-3 rounded-full bg-primary/20 transition-colors hover:bg-primary/40"
                 />
               </div>
@@ -186,13 +186,13 @@ export default function UsagePage() {
               </div>
               <div className="flex gap-4">
                 <div className="text-center">
-                  <div className="flex items-center gap-1 text-sky-400 text-lg font-bold">
+                  <div className="flex items-center gap-1 text-secondary text-lg font-bold">
                     {routineStats.streak} <Flame className="size-5 fill-current" />
                   </div>
                   <div className="text-[9px] uppercase tracking-widest text-black/30 font-bold">Streak</div>
                 </div>
                 <div className="text-center">
-                  <div className="flex items-center gap-1 text-sky-400 text-lg font-bold">
+                  <div className="flex items-center gap-1 text-secondary text-lg font-bold">
                     {routineStats.completedDays} <CheckCircle2 className="size-5" />
                   </div>
                   <div className="text-[9px] uppercase tracking-widest text-black/30 font-bold">Total</div>
@@ -209,7 +209,7 @@ export default function UsagePage() {
                     {routineStats.completedThisWeek} / {weeklyTargetDays} DAYS
                   </Badge>
                 </div>
-                <Progress value={routineStats.completionPercent} className="h-2 bg-black/5" />
+                <Progress value={routineStats.completionPercent} className="h-2 bg-secondary/10" indicatorClassName="bg-secondary" />
               </div>
 
               <div className="p-4 rounded-3xl bg-white/60 border border-black/[0.03] shadow-inner">
@@ -217,8 +217,8 @@ export default function UsagePage() {
                   dots={dots}
                   todayStart={todayStart}
                   filledMap={completionMap}
-                  filledClassName="h-3 w-3 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.5)] transition-all hover:scale-125"
-                  pastClassName="h-0.5 w-3 rounded-full bg-sky-400/20 transition-colors hover:bg-sky-400/40"
+                  filledClassName="h-3 w-3 rounded-full bg-secondary shadow-[0_0_8px_rgba(38,166,154,0.4)] transition-all hover:scale-125"
+                  pastClassName="h-0.5 w-3 rounded-full bg-secondary/20 transition-colors hover:bg-secondary/40"
                 />
               </div>
             </CardContent>

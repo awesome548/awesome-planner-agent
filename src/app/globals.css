@@ -48,8 +48,8 @@
 }
 
 @theme {
-  --color-primary: #fb966e;
-  --color-secondary: #f4a7b9;
+  --color-primary: #E03C8A; /* Brighter Indigo for Planning */
+  --color-secondary: #F17C67; /* Brighter Teal for Routine */
 }
 
 :root {
@@ -119,4 +119,44 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* Supabase Auth UI Overrides */
+.auth-container {
+  width: 100%;
+}
+
+.auth-button {
+  border-radius: 9999px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s !important;
+}
+
+.auth-input {
+  border-radius: 1rem !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  background-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.supabase-auth-ui_ui-button {
+  border-radius: 9999px !important;
+  font-weight: 500 !important;
+  padding: 0.5rem 1rem !important;
+  transition: all 0.2s !important;
+}
+
+.supabase-auth-ui_ui-input {
+  border-radius: 0.75rem !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  background-color: rgba(255, 255, 255, 0.4) !important;
+  padding: 0.5rem 1rem !important;
+}
+
+.supabase-auth-ui_ui-label {
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: rgba(0, 0, 0, 0.4) !important;
+  margin-bottom: 0.25rem !important;
 }
