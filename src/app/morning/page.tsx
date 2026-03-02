@@ -34,8 +34,9 @@ const HOLD_DURATION_MS = 1500;
 
 export default function MorningRoutinePage() {
   const [titleInput, setTitleInput] = useState("");
-  const [runnerOpen, setRunnerOpen] = useState(false);
-  const [managerOpen, setManagerOpen] = useState(false);
+  // Fix #2/#3 (issue #1): runnerOpen and managerOpen now live in the Zustand store
+  // (persisted to sessionStorage) instead of local useState, so they survive React
+  // remounts and mobile browser tab eviction.
   const [now, setNow] = useState(() => new Date());
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [holdProgress, setHoldProgress] = useState(0);
@@ -47,6 +48,10 @@ export default function MorningRoutinePage() {
     actionRecords,
     completionMap,
     loading,
+    runnerOpen,
+    setRunnerOpen,
+    managerOpen,
+    setManagerOpen,
     addAction,
     updateAction,
     deleteAction,
@@ -70,6 +75,31 @@ export default function MorningRoutinePage() {
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [refreshTodayRecords]);
+
+  // Fix #4 (issue #1): On mount, restore runnerOpen from the URL (?runner=open).
+  // This lets deep-links and hard-reloads reopen the runner without relying solely on
+  // sessionStorage (which is cleared when the tab is closed).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("runner") === "open") {
+      setRunnerOpen(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally runs once on mount only
+
+  // Fix #4 (issue #1): Mirror runnerOpen → URL so the state is bookmarkable and
+  // survives hard-reloads. Uses replaceState to avoid polluting the history stack.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (runnerOpen) {
+      url.searchParams.set("runner", "open");
+    } else {
+      url.searchParams.delete("runner");
+    }
+    window.history.replaceState(null, "", url.pathname + (url.search || ""));
+  }, [runnerOpen]);
 
   const completedToday = completionMap[toISODate(new Date())] || false;
 
@@ -234,7 +264,7 @@ export default function MorningRoutinePage() {
                 variant={managerOpen ? "default" : "outline"}
                 size="sm"
                 className={managerOpen ? "bg-black" : "border-black/10"}
-                onClick={() => setManagerOpen((prev) => !prev)}
+                onClick={() => setManagerOpen(!managerOpen)}
               >
                 {managerOpen ? (
                   <>

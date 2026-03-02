@@ -32,7 +32,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
             aria-hidden="true"
             className={`page-transition-scrim ${isTransitioning ? "is-active" : ""}`}
           />
-          <div key={transitionKey} className="page-transition-content">
+          {/* Fix #1 (issue #1): key removed — keying on transitionKey caused a full React
+              unmount/remount on every navigation, resetting all page-level useState (runnerOpen,
+              timers, etc.). The scrim overlay still provides the visual transition. */}
+          <div className="page-transition-content">
             {children}
           </div>
         </div>

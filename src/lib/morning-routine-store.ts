@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/auth-store";
 import { toISODate } from "@/lib/utils";
@@ -26,14 +27,21 @@ export type RoutineActionRecord = {
 };
 
 interface RoutineStore {
-  // State
+  // Server-fetched state
   actions: RoutineAction[];
   actionRecords: Record<string, RoutineActionRecord>;
   completionMap: Record<string, boolean>;
   loading: boolean;
   initialized: boolean;
 
-  // Actions
+  // Fix #2 (issue #1): UI state lifted into the store so it survives React remounts.
+  // Fix #3 (issue #1): These two fields are persisted via sessionStorage (see persist config).
+  runnerOpen: boolean;
+  managerOpen: boolean;
+  setRunnerOpen: (open: boolean) => void;
+  setManagerOpen: (open: boolean) => void;
+
+  // Data actions
   initialize: () => Promise<void>;
   reinitialize: () => Promise<void>;
   addAction: (title: string) => Promise<void>;
@@ -46,13 +54,21 @@ interface RoutineStore {
   refreshTodayRecords: () => Promise<void>;
 }
 
-export const useRoutineStore = create<RoutineStore>((set, get) => ({
+export const useRoutineStore = create<RoutineStore>()(
+  persist(
+    (set, get) => ({
   // Initial state
   actions: [],
   actionRecords: {},
   completionMap: {},
   loading: true,
   initialized: false,
+
+  // UI state (Fix #2 — in store so React remounts don't reset it)
+  runnerOpen: false,
+  managerOpen: false,
+  setRunnerOpen: (open) => set({ runnerOpen: open }),
+  setManagerOpen: (open) => set({ managerOpen: open }),
 
   // Initialize - fetch all data once (idempotent)
   initialize: async () => {
@@ -271,4 +287,17 @@ export const useRoutineStore = create<RoutineStore>((set, get) => ({
 
     set({ actionRecords, completionMap });
   },
-}));
+    }),
+    {
+      // Fix #3 (issue #1): Persist only UI state with sessionStorage so it survives
+      // tab switches, screen lock, and mobile background eviction.
+      // sessionStorage is cleared when the window/tab is closed (intentional fresh start).
+      name: "morning-routine-ui",
+      storage: createJSONStorage(() => sessionStorage),
+      partialize: (state) => ({
+        runnerOpen: state.runnerOpen,
+        managerOpen: state.managerOpen,
+      }),
+    }
+  )
+);
