@@ -59,6 +59,16 @@ export default function Home() {
   const [selectedCalendarId, setSelectedCalendarId] = useState<string>("primary");
   const [calendarsLoading, setCalendarsLoading] = useState(false);
 
+  // Persist input text across tab switches; cleared after calendar sync
+  useEffect(() => {
+    const saved = localStorage.getItem("planner-input-text");
+    if (saved) setText(saved);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("planner-input-text", text);
+  }, [text]);
+
   const today = useMemo(() => new Date(), []);
   const todayLabel = useMemo(() => {
     return today.toLocaleDateString("en-US", {
@@ -170,6 +180,10 @@ export default function Home() {
         calendars.find((c) => c.id === selectedCalendarId)?.summary ?? selectedCalendarId;
       const createdMessage = `Created ${data.createdCount} events in "${selectedLabel}"`;
       setMsg(data?.warning ? `${createdMessage}. ${data.warning}` : createdMessage);
+      setText("");
+      localStorage.removeItem("planner-input-text");
+      setPlan(null);
+      setDraftTasks([]);
     } catch {
       setMsg("Network error. Please try again.");
     } finally {
