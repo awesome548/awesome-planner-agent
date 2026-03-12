@@ -25,10 +25,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 
 const HOLD_DURATION_MS = 1500;
 
@@ -38,7 +37,6 @@ export default function MorningRoutinePage() {
   // (persisted to sessionStorage) instead of local useState, so they survive React
   // remounts and mobile browser tab eviction.
   const [now, setNow] = useState(() => new Date());
-  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [holdProgress, setHoldProgress] = useState(0);
   const holdStartRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -60,8 +58,6 @@ export default function MorningRoutinePage() {
     markDayComplete,
     refreshTodayRecords,
   } = useRoutineStore();
-
-  const DEFAULT_ACTION_SECONDS = 5 * 60;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -130,20 +126,6 @@ export default function MorningRoutinePage() {
 
     return () => clearInterval(interval);
   }, [runnerOpen]);
-
-  useEffect(() => {
-    if (!runnerOpen || !currentAction) {
-      setRemainingSeconds(null);
-      return;
-    }
-
-    setRemainingSeconds(DEFAULT_ACTION_SECONDS);
-    const interval = setInterval(() => {
-      setRemainingSeconds((prev) => (prev === null ? null : Math.max(prev - 1, 0)));
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [runnerOpen, currentAction?.id]);
 
   const handleAddAction = async () => {
     if (!titleInput.trim()) return;
@@ -218,17 +200,6 @@ export default function MorningRoutinePage() {
   useEffect(() => {
     return () => cancelHold();
   }, [cancelHold]);
-
-  const formatRemaining = (seconds: number | null) => {
-    if (seconds === null) return "--:--";
-    const minutes = Math.floor(seconds / 60)
-      .toString()
-      .padStart(2, "0");
-    const secs = Math.floor(seconds % 60)
-      .toString()
-      .padStart(2, "0");
-    return `${minutes}:${secs}`;
-  };
 
   return (
     <main className="min-h-screen relative overflow-hidden bg-[#f8f6f1] text-[#0c0c0c]">
@@ -442,17 +413,9 @@ export default function MorningRoutinePage() {
         <DialogContent className="max-w-4xl w-full h-full sm:h-[90vh] flex flex-col p-0 overflow-hidden border-none bg-transparent shadow-none">
           <div className="flex-1 flex flex-col bg-[#f8f6f1]/95 backdrop-blur-2xl p-6 sm:p-8 rounded-none sm:rounded-[40px] sm:m-4 shadow-2xl border border-white/50">
             <DialogHeader className="flex flex-row items-center justify-between mb-6 sm:mb-12">
-              <div className="space-y-1">
-                <DialogTitle className="text-[10px] uppercase tracking-[0.4em] text-black/30 font-bold">
-                  Morning Runner
-                </DialogTitle>
-                <div className="text-xl sm:text-2xl font-bold tracking-tight">
-                  {now.toLocaleTimeString(undefined, {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </div>
-              </div>
+              <DialogTitle className="text-[10px] uppercase tracking-[0.4em] text-black/30 font-bold">
+                Morning Runner
+              </DialogTitle>
               <Button
                 variant="ghost"
                 size="icon"
@@ -471,8 +434,8 @@ export default function MorningRoutinePage() {
                 <h2 className="text-3xl sm:text-5xl font-bold tracking-tight leading-tight px-2">
                   {currentAction ? currentAction.title : "All Completed"}
                 </h2>
-                <div className="flex items-center justify-center gap-2 text-xl sm:text-2xl font-mono text-black/40">
-                  <Clock className="h-5 w-5 sm:h-6 sm:w-6" /> {formatRemaining(remainingSeconds)}
+                <div className="text-4xl sm:text-6xl font-bold tracking-tight tabular-nums text-black/20">
+                  {now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
                 </div>
               </div>
 
@@ -482,7 +445,7 @@ export default function MorningRoutinePage() {
                     <div className="text-[9px] uppercase tracking-[0.2em] font-bold text-black/30 mb-2 sm:mb-4">Up Next</div>
                     <div className="space-y-2">
                       {upcomingActions.length > 0 ? (
-                        upcomingActions.map((action, idx) => (
+                        upcomingActions.map((action) => (
                           <div key={action.id} className="flex items-center justify-between py-1">
                             <span className="font-medium text-sm sm:text-base text-black/70 truncate mr-2">{action.title}</span>
                             <Badge variant="outline" className="text-[8px] sm:text-[9px] text-black/20 font-bold border-none shrink-0">STEP {currentIndex + 2}</Badge>
@@ -499,38 +462,42 @@ export default function MorningRoutinePage() {
                   <CardContent className="p-4 sm:p-8 text-center space-y-3 sm:space-y-4">
                     <div className="text-[9px] uppercase tracking-[0.2em] font-bold text-black/30">Hold to proceed</div>
                     <div className="relative h-20 w-20 sm:h-24 sm:w-24 mx-auto">
-                      <svg className="h-full w-full -rotate-90">
+                      <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
                         <circle
-                          cx="50%"
-                          cy="50%"
-                          r="44%"
+                          cx="50"
+                          cy="50"
+                          r="45"
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="8"
                           className="text-black/5"
                         />
                         <circle
-                          cx="50%"
-                          cy="50%"
-                          r="44%"
+                          cx="50"
+                          cy="50"
+                          r="45"
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="8"
-                          strokeDasharray="100%"
-                          strokeDashoffset={`${100 - holdProgress}%`}
-                          className="text-secondary transition-all duration-75"
+                          strokeLinecap="round"
+                          strokeDasharray={2 * Math.PI * 45}
+                          strokeDashoffset={2 * Math.PI * 45 * (1 - holdProgress / 100)}
+                          className="text-secondary"
                         />
                       </svg>
-                      <Button
-                        className="absolute inset-1.5 sm:inset-2 rounded-full bg-white shadow-lg border-none hover:bg-secondary/5 transition-colors select-none touch-none"
-                        onPointerDown={handleHoldStart}
+                      <div
+                        className={`absolute inset-2 rounded-full bg-white shadow-lg flex items-center justify-center select-none touch-none ${
+                          actions.length === 0 || !currentAction
+                            ? "opacity-40 cursor-not-allowed"
+                            : "cursor-pointer"
+                        }`}
+                        onPointerDown={actions.length === 0 || !currentAction ? undefined : handleHoldStart}
                         onPointerUp={cancelHold}
                         onPointerLeave={cancelHold}
                         onPointerCancel={cancelHold}
-                        disabled={actions.length === 0 || !currentAction}
                       >
                         <CheckCircle2 className={`h-6 w-6 sm:h-8 sm:w-8 transition-colors ${holdProgress > 0 ? 'text-secondary' : 'text-black/20'}`} />
-                      </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -538,7 +505,7 @@ export default function MorningRoutinePage() {
             </div>
 
             <div className="mt-6 sm:mt-8">
-              <Progress value={((currentIndex + 1) / actions.length) * 100} className="h-1 bg-black/5" />
+              <Progress value={((currentIndex + 1) / actions.length) * 100} className="h-3 bg-black/5" />
             </div>
           </div>
         </DialogContent>

@@ -15,13 +15,11 @@ import { useRoutineStore } from "@/lib/morning-routine-store";
 import { useUsageStore } from "@/lib/usage-store";
 import BottomBar from "@/components/bottomBar";
 import PageHeader from "@/components/pageHeader";
-import RecordCard from "@/components/recordCard";
 import RecordDotGrid from "@/components/recordDotGrid";
 
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 function dayOfYear(d: Date) {
   const start = new Date(d.getFullYear(), 0, 0);

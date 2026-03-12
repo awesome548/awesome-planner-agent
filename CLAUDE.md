@@ -5,9 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev          # Start dev server (http://localhost:3000)
-npm run build        # Production build
-npm run lint         # ESLint (eslint-config-next with core-web-vitals + typescript)
+pnpm dev          # Start dev server (http://localhost:3000)
+pnpm run build        # Production build
+pnpm lint         # ESLint (eslint-config-next with core-web-vitals + typescript)
 ```
 
 No test framework is configured.
