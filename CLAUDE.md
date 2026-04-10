@@ -28,7 +28,8 @@ All env vars are validated with Zod in `src/lib/env.ts` (loaded from `.env.local
 
 | Route | Purpose |
 |-------|---------|
-| `/` | Day planner: text input -> OpenAI generates structured schedule -> preview/edit -> create Google Calendar events |
+| `/` | Dashboard: status summary with links to /plan, /morning, /usage |
+| `/plan` | Day planner: text input -> OpenAI generates structured schedule -> preview/edit -> create Google Calendar events |
 | `/morning` | Morning routine: CRUD actions, fullscreen timer runner mode with long-press "Move to next" (2s hold), per-action completion tracking |
 | `/usage` | Year-at-a-glance: 365-dot grid showing streaks for both planning and routine completion, plus weekly completion bars (6-day target) |
 
@@ -43,17 +44,23 @@ All env vars are validated with Zod in `src/lib/env.ts` (loaded from `.env.local
 3. OpenAI generates structured JSON matching `PlanSchema` (Zod validated)
 4. Conflict detection runs against busy intervals
 5. Client previews/edits, then sends to `/api/calendar/create`
-6. Usage marked in Supabase
+6. Usage marked via `useMarkUsed()` optimistic mutation
 
 ## State Management
 
-Two Zustand stores in `src/lib/`:
-- `usage-store.ts` - tracks which dates the day planner was used (`usage_records` table)
-- `morning-routine-store.ts` - manages routine actions and per-day completion (`morning_routine_actions`, `morning_routine_completions`, `morning_routine_action_records` tables)
+**TanStack Query** (server state) in `src/lib/api/`:
+- `usage.ts` - `useUsageRecords()`, `useMarkUsed()`, `useToggleUsed()` — tracks which dates the day planner was used (`usage_records` table). Optimistic updates.
+- `routine.ts` - `useRoutineActions()`, `useActionRecords(date)`, `useRoutineCompletions()` + mutation hooks for CRUD — manages routine actions and per-day completion. Optimistic updates.
+- `plan.ts` - `useCalendars()`, `usePreparePlan()`, `useGeneratePlan()`, `useCreateEvents()` — orchestrates plan generation and calendar sync via mutations.
+- `keys.ts` - Query key factory for cache management.
+- `client.ts` - Typed fetch wrapper for `{ ok, error }` API envelope.
 
-Both stores use immutable update patterns exclusively. Each store has an `initialized` boolean flag for idempotent initialization (set synchronously before the async fetch to prevent concurrent calls; reset on failure for retry).
+**Zustand** (client state) in `src/lib/auth-store.ts`:
+- Auth store only — Supabase `onAuthStateChange` subscription, approval status gate. Not cacheable server state.
 
-Store initialization is centralized in `src/components/storeInitializer.tsx`, rendered inside `<SessionProvider>` in `src/app/providers.tsx`. This ensures stores load from any entry page (`/`, `/morning`, `/usage`) without duplicating init logic in individual pages.
+**QueryClient config** (`src/lib/query-client.ts`): `staleTime: 5min`, `gcTime: 30min`, `retry: 1`, `refetchOnWindowFocus: true`.
+
+Store initialization is centralized in `src/components/storeInitializer.tsx` (auth only). TanStack queries self-initialize when components mount.
 
 ## Week System (Monday Start)
 
