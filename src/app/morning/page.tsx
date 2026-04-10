@@ -4,18 +4,28 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   SunIcon,
 } from "@heroicons/react/24/outline";
-import { 
-  Plus, 
-  Pencil, 
-  Trash2, 
-  ChevronUp, 
-  ChevronDown, 
-  X, 
-  Play, 
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  ChevronUp,
+  ChevronDown,
+  X,
+  Play,
   CheckCircle2,
   Clock
 } from "lucide-react";
-import { useRoutineStore } from "@/lib/morning-routine-store";
+import {
+  useRoutineActions,
+  useActionRecords,
+  useRoutineCompletions,
+  useAddAction,
+  useUpdateAction,
+  useDeleteAction,
+  useReorderActions,
+  useToggleActionCompletion,
+  useMarkDayComplete,
+} from "@/lib/api/routine";
 import BottomBar from "@/components/bottomBar";
 import PageHeader from "@/components/pageHeader";
 import { toISODate } from "@/lib/utils";
@@ -33,44 +43,56 @@ const HOLD_DURATION_MS = 1500;
 
 export default function MorningRoutinePage() {
   const [titleInput, setTitleInput] = useState("");
-  // Fix #2/#3 (issue #1): runnerOpen and managerOpen now live in the Zustand store
-  // (persisted to sessionStorage) instead of local useState, so they survive React
-  // remounts and mobile browser tab eviction.
   const [now, setNow] = useState(() => new Date());
   const [holdProgress, setHoldProgress] = useState(0);
   const holdStartRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
 
-  const {
-    actions,
-    actionRecords,
-    completionMap,
-    loading,
-    runnerOpen,
-    setRunnerOpen,
-    managerOpen,
-    setManagerOpen,
-    addAction,
-    updateAction,
-    deleteAction,
-    reorderActions,
-    toggleActionCompletion,
-    markDayComplete,
-    refreshTodayRecords,
-  } = useRoutineStore();
+  const today = toISODate(new Date());
+
+  // Queries
+  const { data: actions = [], isLoading: loading } = useRoutineActions();
+  const { data: actionRecords = {} } = useActionRecords(today);
+  const { data: completionMap = {} } = useRoutineCompletions();
+
+  // Mutations
+  const addActionMut = useAddAction();
+  const updateActionMut = useUpdateAction();
+  const deleteActionMut = useDeleteAction();
+  const reorderActionsMut = useReorderActions();
+  const toggleCompletionMut = useToggleActionCompletion();
+  const markDayCompleteMut = useMarkDayComplete();
+
+  // UI state — local, not server state. Initialized from sessionStorage.
+  const [runnerOpen, setRunnerOpen] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return sessionStorage.getItem("morning-routine-ui-runner") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [managerOpen, setManagerOpen] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return sessionStorage.getItem("morning-routine-ui-manager") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  // Persist UI state to sessionStorage
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("morning-routine-ui-runner", String(runnerOpen));
+    } catch { /* ignore */ }
+  }, [runnerOpen]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === "visible") {
-        await refreshTodayRecords();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [refreshTodayRecords]);
+    try {
+      sessionStorage.setItem("morning-routine-ui-manager", String(managerOpen));
+    } catch { /* ignore */ }
+  }, [managerOpen]);
 
   // Fix #4 (issue #1): On mount, restore runnerOpen from the URL (?runner=open).
   // This lets deep-links and hard-reloads reopen the runner without relying solely on
@@ -129,26 +151,24 @@ export default function MorningRoutinePage() {
 
   const handleAddAction = async () => {
     if (!titleInput.trim()) return;
-    await addAction(titleInput);
+    await addActionMut.mutateAsync(titleInput);
     setTitleInput("");
   };
 
   const handleMoveAction = async (index: number, direction: number) => {
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= actions.length) return;
-    await reorderActions(index, targetIndex);
+    await reorderActionsMut.mutateAsync({ startIndex: index, endIndex: targetIndex });
   };
 
   const handleMoveToNext = useCallback(async () => {
     if (!currentAction) return;
-
-    await toggleActionCompletion(currentAction.id);
-
+    await toggleCompletionMut.mutateAsync({ actionId: currentAction.id });
     if (currentIndex >= actions.length - 1) {
-      await markDayComplete();
+      await markDayCompleteMut.mutateAsync(new Date());
       setRunnerOpen(false);
     }
-  }, [currentAction, currentIndex, actions.length, toggleActionCompletion, markDayComplete]);
+  }, [currentAction, currentIndex, actions.length, toggleCompletionMut, markDayCompleteMut]);
 
   const handleMoveToNextRef = useRef(handleMoveToNext);
   useEffect(() => {
@@ -264,16 +284,16 @@ export default function MorningRoutinePage() {
                             ? "bg-black text-white hover:bg-black/80"
                             : "bg-black/5 text-black/40 hover:bg-black hover:text-white"
                         }`}
-                        onClick={() => toggleActionCompletion(action.id)}
+                        onClick={() => toggleCompletionMut.mutate({ actionId: action.id })}
                       >
                         {actionRecords[action.id]?.completed ? "Done" : "Mark"}
                       </Button>
-                      
+
                       <Input
                         className="flex-1 h-8 border-none bg-transparent font-medium text-sm focus-visible:ring-0 px-1"
                         value={action.title}
                         onChange={(e) => {
-                          updateAction({ ...action, title: e.target.value });
+                          updateActionMut.mutate({ ...action, title: e.target.value });
                         }}
                       />
 
@@ -300,7 +320,7 @@ export default function MorningRoutinePage() {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 rounded-full text-black/20 hover:text-destructive hover:bg-destructive/5"
-                              onClick={() => deleteAction(action.id)}
+                              onClick={() => deleteActionMut.mutate(action.id)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -396,7 +416,7 @@ export default function MorningRoutinePage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-black/50">Completion Rate</span>
                   <span className="text-xs font-bold text-black/70">
-                    {actions.length > 0 
+                    {actions.length > 0
                       ? Math.round((actions.filter(a => actionRecords[a.id]?.completed).length / actions.length) * 100)
                       : 0}%
                   </span>
