@@ -12,7 +12,7 @@ import {
 import { toISODate } from "@/lib/utils";
 import { getCurrentWeekKeys } from "@/lib/week";
 import { useRoutineStore } from "@/lib/morning-routine-store";
-import { useUsageStore } from "@/lib/usage-store";
+import { useUsageRecords } from "@/lib/api/usage";
 import BottomBar from "@/components/bottomBar";
 import PageHeader from "@/components/pageHeader";
 import RecordDotGrid from "@/components/recordDotGrid";
@@ -28,7 +28,7 @@ function dayOfYear(d: Date) {
 }
 
 export default function UsagePage() {
-  const { usageMap } = useUsageStore();
+  const { data: usageMap = {} } = useUsageRecords();
   const { completionMap } = useRoutineStore();
 
   const year = useMemo(() => new Date().getFullYear(), []);
