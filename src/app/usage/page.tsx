@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { toISODate } from "@/lib/utils";
 import { getCurrentWeekKeys } from "@/lib/week";
-import { useRoutineStore } from "@/lib/morning-routine-store";
+import { useRoutineCompletions } from "@/lib/api/routine";
 import { useUsageRecords } from "@/lib/api/usage";
 import BottomBar from "@/components/bottomBar";
 import PageHeader from "@/components/pageHeader";
@@ -29,7 +29,7 @@ function dayOfYear(d: Date) {
 
 export default function UsagePage() {
   const { data: usageMap = {} } = useUsageRecords();
-  const { completionMap } = useRoutineStore();
+  const { data: completionMap = {} } = useRoutineCompletions();
 
   const year = useMemo(() => new Date().getFullYear(), []);
   const totalDays = useMemo(() => 365, []);
