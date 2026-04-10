@@ -5,7 +5,7 @@ import { getSupabaseClient } from "@/lib/supabase";
 import { UserCircleIcon } from "@heroicons/react/24/outline";
 
 type BottomBarProps = {
-  active: "usage" | "plan" | "morning";
+  active: "home" | "usage" | "plan" | "morning";
 };
 
 export default function BottomBar({ active }: BottomBarProps) {
@@ -21,6 +21,12 @@ export default function BottomBar({ active }: BottomBarProps) {
       <div className="rounded-full bg-white/90 border border-black/10 shadow-[0_12px_40px_rgba(0,0,0,0.08)] backdrop-blur p-1.5 flex items-center gap-1.5">
         <div className="flex items-center gap-1">
           <Link
+            className={`${base} ${active === "home" ? activeClasses : inactive}`}
+            href="/"
+          >
+            Home
+          </Link>
+          <Link
             className={`${base} ${active === "usage" ? activeClasses : inactive}`}
             href="/usage"
           >
@@ -28,7 +34,7 @@ export default function BottomBar({ active }: BottomBarProps) {
           </Link>
           <Link
             className={`${base} ${active === "plan" ? activeClasses : inactive}`}
-            href="/"
+            href="/plan"
           >
             Plan
           </Link>
