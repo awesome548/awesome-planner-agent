@@ -101,13 +101,13 @@ export function useAddAction() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (title: string) => {
+    mutationFn: async ({ title, id }: { title: string; id: string }) => {
       const userId = getUserId();
       if (!userId) throw new Error("Not authenticated");
 
       const actions = queryClient.getQueryData<RoutineAction[]>(queryKeys.routine.actions()) ?? [];
       const newAction: RoutineAction = {
-        id: crypto.randomUUID(),
+        id,
         title: title.trim(),
         position: actions.length,
       };
@@ -120,11 +120,11 @@ export function useAddAction() {
       if (error) throw new Error(error.message);
       return newAction;
     },
-    onMutate: async (title: string) => {
+    onMutate: async ({ title, id }: { title: string; id: string }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.routine.actions() });
       const previous = queryClient.getQueryData<RoutineAction[]>(queryKeys.routine.actions()) ?? [];
       const newAction: RoutineAction = {
-        id: crypto.randomUUID(),
+        id,
         title: title.trim(),
         position: previous.length,
       };
@@ -284,7 +284,7 @@ export function useToggleActionCompletion() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ actionId, date = new Date() }: { actionId: string; date?: Date }) => {
+    mutationFn: async ({ actionId, date = new Date(), recordId }: { actionId: string; date?: Date; recordId: string }) => {
       const userId = getUserId();
       if (!userId) throw new Error("Not authenticated");
 
@@ -294,7 +294,7 @@ export function useToggleActionCompletion() {
       const newCompleted = !existing?.completed;
 
       const updated: RoutineActionRecord = {
-        id: existing?.id || crypto.randomUUID(),
+        id: existing?.id || recordId,
         action_id: actionId,
         completed_on: dateKey,
         completed: newCompleted,
@@ -311,7 +311,7 @@ export function useToggleActionCompletion() {
       if (error) throw new Error(error.message);
       return updated;
     },
-    onMutate: async ({ actionId, date = new Date() }: { actionId: string; date?: Date }) => {
+    onMutate: async ({ actionId, date = new Date(), recordId }: { actionId: string; date?: Date; recordId: string }) => {
       const dateKey = toISODate(date);
       await queryClient.cancelQueries({ queryKey: queryKeys.routine.records(dateKey) });
       const previous = queryClient.getQueryData<ActionRecordMap>(queryKeys.routine.records(dateKey)) ?? {};
@@ -319,7 +319,7 @@ export function useToggleActionCompletion() {
       const newCompleted = !existing?.completed;
 
       const updated: RoutineActionRecord = {
-        id: existing?.id || crypto.randomUUID(),
+        id: existing?.id || recordId,
         action_id: actionId,
         completed_on: dateKey,
         completed: newCompleted,

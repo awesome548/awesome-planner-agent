@@ -151,7 +151,7 @@ export default function MorningRoutinePage() {
 
   const handleAddAction = async () => {
     if (!titleInput.trim()) return;
-    await addActionMut.mutateAsync(titleInput);
+    await addActionMut.mutateAsync({ title: titleInput, id: crypto.randomUUID() });
     setTitleInput("");
   };
 
@@ -163,7 +163,7 @@ export default function MorningRoutinePage() {
 
   const handleMoveToNext = useCallback(async () => {
     if (!currentAction) return;
-    await toggleCompletionMut.mutateAsync({ actionId: currentAction.id });
+    await toggleCompletionMut.mutateAsync({ actionId: currentAction.id, recordId: crypto.randomUUID() });
     if (currentIndex >= actions.length - 1) {
       await markDayCompleteMut.mutateAsync(new Date());
       setRunnerOpen(false);
@@ -284,7 +284,7 @@ export default function MorningRoutinePage() {
                             ? "bg-black text-white hover:bg-black/80"
                             : "bg-black/5 text-black/40 hover:bg-black hover:text-white"
                         }`}
-                        onClick={() => toggleCompletionMut.mutate({ actionId: action.id })}
+                        onClick={() => toggleCompletionMut.mutate({ actionId: action.id, recordId: crypto.randomUUID() })}
                       >
                         {actionRecords[action.id]?.completed ? "Done" : "Mark"}
                       </Button>

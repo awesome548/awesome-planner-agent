@@ -11,11 +11,9 @@ import { queryClient } from "@/lib/query-client";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [transitionKey, setTransitionKey] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
-    setTransitionKey((prev) => prev + 1);
     setIsTransitioning(true);
     const timeout = setTimeout(() => setIsTransitioning(false), 420);
     return () => clearTimeout(timeout);
