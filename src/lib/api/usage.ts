@@ -14,7 +14,12 @@ type UsageMap = Record<string, boolean>;
 
 async function fetchUsageRecords(): Promise<UsageMap> {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.from(TABLE).select("used_on");
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select("used_on")
+    .gte("used_on", toISODate(oneYearAgo));
 
   if (error || !data) throw new Error(error?.message || "Failed to fetch usage records");
 
@@ -83,10 +88,17 @@ export function useToggleUsed() {
       if (!userId) throw new Error("Not authenticated");
 
       const dateKey = toISODate(date);
-      const current = queryClient.getQueryData<UsageMap>(queryKeys.usage.records());
-      const newValue = !current?.[dateKey];
-
       const supabase = getSupabaseClient();
+
+      // Read actual DB state to determine toggle direction (onMutate already flipped the cache)
+      const { data: row } = await supabase
+        .from(TABLE)
+        .select("used_on")
+        .eq("user_id", userId)
+        .eq("used_on", dateKey)
+        .maybeSingle();
+
+      const newValue = !row;
 
       if (newValue) {
         const { error } = await supabase

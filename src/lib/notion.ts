@@ -63,14 +63,15 @@ async function getAllChildBlocks(blockId: string): Promise<any[]> {
     cursor = res.next_cursor;
   }
 
-  // Recursively pull nested children
-  for (const b of results) {
-    if (b.has_children) {
-      const nested = await getAllChildBlocks(b.id);
-      // Attach children so we can serialize them in order later
-      (b as any).__children = nested;
-    }
-  }
+  // Recursively pull nested children in parallel
+  await Promise.all(
+    results
+      .filter((b) => b.has_children)
+      .map(async (b) => {
+        const nested = await getAllChildBlocks(b.id);
+        (b as any).__children = nested;
+      })
+  );
 
   return results;
 }

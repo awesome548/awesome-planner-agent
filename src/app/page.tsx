@@ -1,54 +1,34 @@
 "use client";
 
 import { useMemo } from "react";
-import { CalendarDaysIcon, SunIcon, Squares2X2Icon } from "@heroicons/react/24/outline";
-import { Flame, ArrowRight } from "lucide-react";
+import { CalendarDays, Sun, LayoutGrid, Flame, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { toISODate } from "@/lib/utils";
+import { calculateStreak } from "@/lib/streak";
 import { useUsageRecords } from "@/lib/api/usage";
 import { useRoutineCompletions } from "@/lib/api/routine";
 import BottomBar from "@/components/bottomBar";
 import PageHeader from "@/components/pageHeader";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
+const EMPTY_MAP: Record<string, boolean> = {};
 
 export default function DashboardPage() {
-  const { data: usageMap = {} } = useUsageRecords();
-  const { data: completionMap = {} } = useRoutineCompletions();
+  const { data: usageMap = EMPTY_MAP } = useUsageRecords();
+  const { data: completionMap = EMPTY_MAP } = useRoutineCompletions();
 
   const todayKey = useMemo(() => toISODate(new Date()), []);
 
   const plannedToday = !!usageMap[todayKey];
   const routineToday = !!completionMap[todayKey];
 
-  const planStreak = useMemo(() => {
-    let streak = 0;
-    const cursor = new Date();
-    for (let i = 0; i < 365; i++) {
-      if (usageMap[toISODate(cursor)]) {
-        streak++;
-        cursor.setDate(cursor.getDate() - 1);
-      } else {
-        break;
-      }
-    }
-    return streak;
-  }, [usageMap]);
-
-  const routineStreak = useMemo(() => {
-    let streak = 0;
-    const cursor = new Date();
-    for (let i = 0; i < 365; i++) {
-      if (completionMap[toISODate(cursor)]) {
-        streak++;
-        cursor.setDate(cursor.getDate() - 1);
-      } else {
-        break;
-      }
-    }
-    return streak;
-  }, [completionMap]);
+  const planStreak = useMemo(() => calculateStreak(usageMap), [usageMap]);
+  const routineStreak = useMemo(() => calculateStreak(completionMap), [completionMap]);
+  const totalTracked = useMemo(
+    () => Object.values(usageMap).filter(Boolean).length + Object.values(completionMap).filter(Boolean).length,
+    [usageMap, completionMap]
+  );
 
   const todayLabel = useMemo(() => {
     return new Date().toLocaleDateString("en-US", {
@@ -59,106 +39,83 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <main className="min-h-screen relative overflow-hidden bg-[#f8f6f1] text-[#0c0c0c] selection:bg-primary/20">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#ffffff_0%,_#f8f6f1_55%,_#f1efe8_100%)]" />
-      <div className="pointer-events-none absolute inset-0 opacity-40 bg-[radial-gradient(#1a1a1a1a_1px,transparent_1px)] [background-size:24px_24px]" />
-
-      <div className="relative z-10 max-w-4xl mx-auto px-6 pt-10 pb-36 flex min-h-screen flex-col">
+    <main className="min-h-screen bg-white bg-dots text-black">
+      <div className="max-w-2xl mx-auto px-6 pt-16 pb-32">
         <PageHeader
           eyebrow="Dashboard"
           title={todayLabel}
-          icon={<Squares2X2Icon className="size-6 text-black/40" />}
+          icon={<LayoutGrid className="size-5 text-black/30" />}
         />
 
-        <section className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="mt-16 space-y-3">
           {/* Plan Card */}
-          <Link href="/plan" className="group">
-            <Card className="border-black/5 bg-white/60 backdrop-blur-xl shadow-2xl shadow-black/5 overflow-hidden transition-all group-hover:shadow-3xl group-hover:bg-white/80 h-full">
-              <CardContent className="p-6 flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center">
-                    <CalendarDaysIcon className="size-5 text-primary" />
-                  </div>
-                  <ArrowRight className="size-4 text-black/20 group-hover:text-black/50 transition-colors" />
+          <Link href="/plan" className="group block">
+            <Card className="border-black/6 bg-white shadow-none hover:bg-black/[0.02] transition-colors">
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
+                  <CalendarDays className="size-[18px] text-primary" />
                 </div>
-                <div>
-                  <h3 className="font-semibold tracking-tight">Day Planner</h3>
-                  <p className="text-xs text-black/40 mt-1">AI-powered daily scheduling</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-medium">Day Planner</h3>
+                  <p className="text-xs text-black/40 mt-0.5">
+                    {plannedToday ? (
+                      <span className="text-primary">Planned today</span>
+                    ) : (
+                      "Not yet planned"
+                    )}
+                    {planStreak > 0 && (
+                      <span className="inline-flex items-center gap-0.5 ml-2 text-primary font-medium">
+                        {planStreak} <Flame className="size-3 fill-current" />
+                      </span>
+                    )}
+                  </p>
                 </div>
-                <div className="flex items-center gap-3 mt-auto pt-2">
-                  <Badge
-                    variant="outline"
-                    className={`text-[9px] uppercase tracking-[0.2em] font-bold border-none ${
-                      plannedToday ? "bg-primary/10 text-primary" : "bg-black/5 text-black/30"
-                    }`}
-                  >
-                    {plannedToday ? "Planned" : "Not yet"}
-                  </Badge>
-                  {planStreak > 0 && (
-                    <span className="flex items-center gap-1 text-xs font-bold text-primary">
-                      {planStreak} <Flame className="size-3 fill-current" />
-                    </span>
-                  )}
-                </div>
+                <ArrowRight className="size-4 text-black/15 group-hover:text-black/40 transition-colors shrink-0" />
               </CardContent>
             </Card>
           </Link>
 
           {/* Morning Card */}
-          <Link href="/morning" className="group">
-            <Card className="border-black/5 bg-white/60 backdrop-blur-xl shadow-2xl shadow-black/5 overflow-hidden transition-all group-hover:shadow-3xl group-hover:bg-white/80 h-full">
-              <CardContent className="p-6 flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <div className="h-10 w-10 rounded-2xl bg-secondary/10 flex items-center justify-center">
-                    <SunIcon className="size-5 text-secondary" />
-                  </div>
-                  <ArrowRight className="size-4 text-black/20 group-hover:text-black/50 transition-colors" />
+          <Link href="/morning" className="group block">
+            <Card className="border-black/6 bg-white shadow-none hover:bg-black/[0.02] transition-colors">
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-secondary/8 flex items-center justify-center shrink-0">
+                  <Sun className="size-[18px] text-secondary" />
                 </div>
-                <div>
-                  <h3 className="font-semibold tracking-tight">Morning Routine</h3>
-                  <p className="text-xs text-black/40 mt-1">Build consistent habits</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-medium">Morning Routine</h3>
+                  <p className="text-xs text-black/40 mt-0.5">
+                    {routineToday ? (
+                      <span className="text-secondary">Completed today</span>
+                    ) : (
+                      "Not yet completed"
+                    )}
+                    {routineStreak > 0 && (
+                      <span className="inline-flex items-center gap-0.5 ml-2 text-secondary font-medium">
+                        {routineStreak} <Flame className="size-3 fill-current" />
+                      </span>
+                    )}
+                  </p>
                 </div>
-                <div className="flex items-center gap-3 mt-auto pt-2">
-                  <Badge
-                    variant="outline"
-                    className={`text-[9px] uppercase tracking-[0.2em] font-bold border-none ${
-                      routineToday ? "bg-secondary/10 text-secondary" : "bg-black/5 text-black/30"
-                    }`}
-                  >
-                    {routineToday ? "Completed" : "Not yet"}
-                  </Badge>
-                  {routineStreak > 0 && (
-                    <span className="flex items-center gap-1 text-xs font-bold text-secondary">
-                      {routineStreak} <Flame className="size-3 fill-current" />
-                    </span>
-                  )}
-                </div>
+                <ArrowRight className="size-4 text-black/15 group-hover:text-black/40 transition-colors shrink-0" />
               </CardContent>
             </Card>
           </Link>
 
           {/* Records Card */}
-          <Link href="/usage" className="group">
-            <Card className="border-black/5 bg-white/60 backdrop-blur-xl shadow-2xl shadow-black/5 overflow-hidden transition-all group-hover:shadow-3xl group-hover:bg-white/80 h-full">
-              <CardContent className="p-6 flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <div className="h-10 w-10 rounded-2xl bg-black/5 flex items-center justify-center">
-                    <Squares2X2Icon className="size-5 text-black/40" />
-                  </div>
-                  <ArrowRight className="size-4 text-black/20 group-hover:text-black/50 transition-colors" />
+          <Link href="/usage" className="group block">
+            <Card className="border-black/6 bg-white shadow-none hover:bg-black/[0.02] transition-colors">
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-black/[0.04] flex items-center justify-center shrink-0">
+                  <LayoutGrid className="size-[18px] text-black/30" />
                 </div>
-                <div>
-                  <h3 className="font-semibold tracking-tight">Records</h3>
-                  <p className="text-xs text-black/40 mt-1">Streaks and consistency</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-medium">Records</h3>
+                  <p className="text-xs text-black/40 mt-0.5">
+                    {totalTracked} days tracked
+                  </p>
                 </div>
-                <div className="flex items-center gap-3 mt-auto pt-2">
-                  <Badge
-                    variant="outline"
-                    className="text-[9px] uppercase tracking-[0.2em] font-bold border-none bg-black/5 text-black/30"
-                  >
-                    {Object.values(usageMap).filter(Boolean).length + Object.values(completionMap).filter(Boolean).length} days tracked
-                  </Badge>
-                </div>
+                <ArrowRight className="size-4 text-black/15 group-hover:text-black/40 transition-colors shrink-0" />
               </CardContent>
             </Card>
           </Link>

@@ -2,9 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  SunIcon,
-} from "@heroicons/react/24/outline";
-import {
+  Sun,
   Plus,
   Pencil,
   Trash2,
@@ -25,6 +23,8 @@ import {
   useReorderActions,
   useToggleActionCompletion,
   useMarkDayComplete,
+  type RoutineAction,
+  type RoutineActionRecord,
 } from "@/lib/api/routine";
 import BottomBar from "@/components/bottomBar";
 import PageHeader from "@/components/pageHeader";
@@ -40,6 +40,52 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const HOLD_DURATION_MS = 1500;
+const DEBOUNCE_MS = 400;
+const SVG_CIRCUMFERENCE = 2 * Math.PI * 45;
+const EMPTY_ACTIONS: RoutineAction[] = [];
+const EMPTY_RECORDS: Record<string, RoutineActionRecord> = {};
+const EMPTY_COMPLETIONS: Record<string, boolean> = {};
+
+function DebouncedActionInput({
+  action,
+  onUpdate,
+}: {
+  action: { id: string; title: string; position: number };
+  onUpdate: (a: { id: string; title: string; position: number }) => void;
+}) {
+  const [local, setLocal] = useState(action.title);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setLocal(action.title);
+  }, [action.title]);
+
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      setLocal(value);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        onUpdate({ ...action, title: value });
+      }, DEBOUNCE_MS);
+    },
+    [action, onUpdate]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  return (
+    <Input
+      className="flex-1 h-8 border-none bg-transparent text-sm focus-visible:ring-0 px-1"
+      value={local}
+      onChange={handleChange}
+    />
+  );
+}
 
 export default function MorningRoutinePage() {
   const [titleInput, setTitleInput] = useState("");
@@ -48,12 +94,12 @@ export default function MorningRoutinePage() {
   const holdStartRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
 
-  const today = toISODate(new Date());
+  const today = useMemo(() => toISODate(new Date()), []);
 
   // Queries
-  const { data: actions = [], isLoading: loading } = useRoutineActions();
-  const { data: actionRecords = {} } = useActionRecords(today);
-  const { data: completionMap = {} } = useRoutineCompletions();
+  const { data: actions = EMPTY_ACTIONS, isLoading: loading } = useRoutineActions();
+  const { data: actionRecords = EMPTY_RECORDS } = useActionRecords(today);
+  const { data: completionMap = EMPTY_COMPLETIONS } = useRoutineCompletions();
 
   // Mutations
   const addActionMut = useAddAction();
@@ -62,6 +108,11 @@ export default function MorningRoutinePage() {
   const reorderActionsMut = useReorderActions();
   const toggleCompletionMut = useToggleActionCompletion();
   const markDayCompleteMut = useMarkDayComplete();
+
+  const handleUpdateAction = useCallback(
+    (a: RoutineAction) => updateActionMut.mutate(a),
+    [updateActionMut]
+  );
 
   // UI state — local, not server state. Initialized from sessionStorage.
   const [runnerOpen, setRunnerOpen] = useState(() => {
@@ -94,9 +145,6 @@ export default function MorningRoutinePage() {
     } catch { /* ignore */ }
   }, [managerOpen]);
 
-  // Fix #4 (issue #1): On mount, restore runnerOpen from the URL (?runner=open).
-  // This lets deep-links and hard-reloads reopen the runner without relying solely on
-  // sessionStorage (which is cleared when the tab is closed).
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -104,10 +152,8 @@ export default function MorningRoutinePage() {
       setRunnerOpen(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // intentionally runs once on mount only
+  }, []);
 
-  // Fix #4 (issue #1): Mirror runnerOpen → URL so the state is bookmarkable and
-  // survives hard-reloads. Uses replaceState to avoid polluting the history stack.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
@@ -119,7 +165,7 @@ export default function MorningRoutinePage() {
     window.history.replaceState(null, "", url.pathname + (url.search || ""));
   }, [runnerOpen]);
 
-  const completedToday = completionMap[toISODate(new Date())] || false;
+  const completedToday = completionMap[today] || false;
 
   const currentActionId = useMemo(() => {
     const firstIncomplete = actions.find((action) => !actionRecords[action.id]?.completed);
@@ -222,111 +268,104 @@ export default function MorningRoutinePage() {
   }, [cancelHold]);
 
   return (
-    <main className="min-h-screen relative overflow-hidden bg-[#f8f6f1] text-[#0c0c0c]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_#ffffff_0%,_#f8f6f1_55%,_#f1efe8_100%)]" />
-      <div className="pointer-events-none absolute inset-0 opacity-40 bg-[radial-gradient(#1a1a1a1a_1px,transparent_1px)] [background-size:24px_24px]" />
-
-      <div className="relative z-10 max-w-4xl mx-auto px-6 pt-10 pb-32">
+    <main className="min-h-screen bg-white bg-dots text-black">
+      <div className="max-w-2xl mx-auto px-6 pt-16 pb-32">
         <PageHeader
           eyebrow="Morning routine"
-          title="Flow, focus, finish strong"
-          icon={<SunIcon className="size-6 text-secondary" />}
+          title="Flow, focus, finish"
+          icon={<Sun className="size-5 text-secondary" />}
           right={
-            <Badge variant="outline" className="text-[10px] uppercase tracking-[0.2em] border-black/10 text-black/40">
+            <Badge variant="outline" className="text-[10px] uppercase tracking-[0.15em] border-black/8 text-black/35 font-medium">
               {actions.length} actions
             </Badge>
           }
         />
 
-        <WeekBar
-          statusMap={completionMap}
-          usedClassName="h-3 w-3 rounded-full bg-secondary shadow-[0_0_8px_rgba(38,166,154,0.4)]"
-          pastClassName="h-0.5 w-3 rounded-full bg-secondary/30"
-        />
+        <div className="mt-8">
+          <WeekBar
+            statusMap={completionMap}
+            usedClassName="h-3 w-3 rounded-full bg-secondary"
+            pastClassName="h-0.5 w-3 rounded-full bg-secondary/20"
+          />
+        </div>
 
-        <section className="mt-12 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-          <Card className="border-black/5 bg-white/60 backdrop-blur-xl shadow-2xl shadow-black/5 overflow-hidden">
+        <section className="mt-12 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          {/* Routine Manager */}
+          <Card className="border-black/6 shadow-none">
             <CardHeader className="flex flex-row items-center justify-between pb-4">
               <div>
-                <CardTitle className="text-lg font-semibold tracking-tight">Routine Manager</CardTitle>
-                <CardDescription>Organize your steps</CardDescription>
+                <CardTitle className="text-base font-semibold">Routine</CardTitle>
+                <CardDescription className="text-xs">Your daily steps</CardDescription>
               </div>
               <Button
                 variant={managerOpen ? "default" : "outline"}
                 size="sm"
-                className={managerOpen ? "bg-black" : "border-black/10"}
+                className={managerOpen ? "bg-black text-white h-8 text-xs" : "border-black/10 h-8 text-xs"}
                 onClick={() => setManagerOpen(!managerOpen)}
               >
                 {managerOpen ? (
-                  <>
-                    <CheckCircle2 className="mr-2 h-4 w-4" /> Done
-                  </>
+                  <><CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Done</>
                 ) : (
-                  <>
-                    <Pencil className="mr-2 h-4 w-4" /> Edit
-                  </>
+                  <><Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit</>
                 )}
               </Button>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[400px] pr-4">
-                <div className="space-y-3">
+              <ScrollArea className="h-[380px] pr-3">
+                <div className="space-y-1.5">
                   {actions.map((action, index) => (
                     <div
                       key={action.id}
-                      className="group flex items-center gap-3 rounded-2xl border border-black/[0.03] bg-white/40 p-3 transition-all hover:bg-white/80"
+                      className="group flex items-center gap-2.5 rounded-lg border border-black/4 p-2.5 hover:bg-black/[0.02] transition-colors"
                     >
                       <Button
                         variant="ghost"
                         size="sm"
-                        className={`h-7 px-2 text-[10px] uppercase tracking-widest rounded-full transition-all ${
+                        className={`h-6 px-2 text-[10px] uppercase tracking-wider rounded-full transition-colors ${
                           actionRecords[action.id]?.completed
-                            ? "bg-black text-white hover:bg-black/80"
-                            : "bg-black/5 text-black/40 hover:bg-black hover:text-white"
+                            ? "bg-black text-white"
+                            : "bg-black/[0.04] text-black/35 hover:bg-black hover:text-white"
                         }`}
                         onClick={() => toggleCompletionMut.mutate({ actionId: action.id, recordId: crypto.randomUUID() })}
                       >
                         {actionRecords[action.id]?.completed ? "Done" : "Mark"}
                       </Button>
 
-                      <Input
-                        className="flex-1 h-8 border-none bg-transparent font-medium text-sm focus-visible:ring-0 px-1"
-                        value={action.title}
-                        onChange={(e) => {
-                          updateActionMut.mutate({ ...action, title: e.target.value });
-                        }}
+                      <DebouncedActionInput
+                        action={action}
+                        onUpdate={handleUpdateAction}
                       />
 
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-0.5">
                         {managerOpen && (
                           <>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 rounded-full text-black/20 hover:text-black hover:bg-black/5"
+                              className="h-6 w-6 rounded-full text-black/20 hover:text-black"
                               onClick={() => handleMoveAction(index, -1)}
                             >
-                              <ChevronUp className="h-4 w-4" />
+                              <ChevronUp className="h-3.5 w-3.5" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 rounded-full text-black/20 hover:text-black hover:bg-black/5"
+                              className="h-6 w-6 rounded-full text-black/20 hover:text-black"
                               onClick={() => handleMoveAction(index, 1)}
                             >
-                              <ChevronDown className="h-4 w-4" />
+                              <ChevronDown className="h-3.5 w-3.5" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 rounded-full text-black/20 hover:text-destructive hover:bg-destructive/5"
+                              className="h-6 w-6 rounded-full text-black/20 hover:text-destructive"
                               onClick={() => deleteActionMut.mutate(action.id)}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </>
                         )}
-                        <span className="text-[10px] font-bold text-black/10 tracking-widest ml-1">
+                        <span className="text-[10px] font-medium text-black/15 tabular-nums ml-1">
                           {String(index + 1).padStart(2, "0")}
                         </span>
                       </div>
@@ -334,26 +373,26 @@ export default function MorningRoutinePage() {
                   ))}
 
                   {actions.length === 0 && !loading && (
-                    <div className="py-12 text-center text-sm text-black/30 italic">
-                      Add your first routine action to begin.
-                    </div>
+                    <p className="py-10 text-center text-xs text-black/30">
+                      Add your first action to begin.
+                    </p>
                   )}
                 </div>
               </ScrollArea>
 
               {managerOpen && (
-                <div className="mt-6 pt-6 border-t border-black/5">
+                <div className="mt-4 pt-4 border-t border-black/6">
                   <div className="flex items-center gap-2">
                     <Input
                       placeholder="e.g. Morning meditation"
                       value={titleInput}
                       onChange={(e) => setTitleInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleAddAction()}
-                      className="rounded-full border-black/10 bg-white/60"
+                      className="rounded-full border-black/8 bg-black/[0.02] text-sm"
                     />
                     <Button
                       size="icon"
-                      className="rounded-full bg-black text-white shadow-lg"
+                      className="rounded-full bg-black text-white h-9 w-9 shrink-0"
                       onClick={handleAddAction}
                     >
                       <Plus className="h-4 w-4" />
@@ -364,58 +403,49 @@ export default function MorningRoutinePage() {
             </CardContent>
           </Card>
 
-          <div className="space-y-8">
-            <Card className="border-black/5 bg-white/60 backdrop-blur-xl shadow-2xl shadow-black/5 overflow-hidden">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg font-semibold tracking-tight">Time Control</CardTitle>
-                <CardDescription>Ready to start?</CardDescription>
-              </CardHeader>
-              <CardContent className="text-center">
+          {/* Right column */}
+          <div className="space-y-6">
+            {/* Start / Completed */}
+            <Card className="border-black/6 shadow-none">
+              <CardContent className="p-5 text-center">
                 {completedToday ? (
-                  <div className="py-8 space-y-3">
-                    <div className="flex justify-center">
-                      <div className="h-16 w-16 rounded-full bg-secondary/10 flex items-center justify-center">
-                        <CheckCircle2 className="h-8 w-8 text-secondary" />
-                      </div>
-                    </div>
-                    <p className="text-lg font-semibold tracking-tight">Morning Completed</p>
-                    <p className="text-xs text-black/40 uppercase tracking-widest font-bold">Excellent start to your day</p>
+                  <div className="py-6 space-y-2">
+                    <CheckCircle2 className="h-8 w-8 text-secondary mx-auto" />
+                    <p className="text-sm font-semibold">Completed</p>
+                    <p className="text-[11px] text-black/35">Great start to your day</p>
                   </div>
                 ) : (
-                  <div className="py-6 space-y-4">
+                  <div className="py-4">
                     <Button
                       size="lg"
-                      className="w-full h-20 rounded-3xl bg-secondary hover:bg-secondary/90 text-white shadow-xl shadow-secondary/20 transition-all active:scale-[0.98] text-lg font-semibold tracking-wide"
+                      className="w-full h-14 rounded-2xl bg-black hover:bg-black/85 text-white text-sm font-medium"
                       onClick={() => setRunnerOpen(true)}
                       disabled={actions.length === 0}
                     >
-                      <Play className="mr-3 h-6 w-6 fill-current" />
+                      <Play className="mr-2 h-4 w-4 fill-current" />
                       Start Routine
                     </Button>
                     {actions.length === 0 && !loading && (
-                      <p className="text-[10px] text-black/30 uppercase tracking-[0.2em] font-bold">
-                        Add actions to enable start
-                      </p>
+                      <p className="mt-3 text-[11px] text-black/30">Add actions to enable start</p>
                     )}
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            <Card className="border-black/5 bg-white/60 backdrop-blur-xl shadow-2xl shadow-black/5 overflow-hidden">
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] font-bold text-black/30 mb-2">
-                  <Clock className="h-3 w-3" /> System Status
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-black/50">Actions Prepared</span>
-                  <Badge variant="secondary" className="bg-black/5 text-black/60">{actions.length}</Badge>
+            {/* Status */}
+            <Card className="border-black/6 shadow-none">
+              <CardContent className="p-5 space-y-3">
+                <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-black/30 font-medium">
+                  <Clock className="h-3 w-3" /> Status
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-black/50">Completion Rate</span>
-                  <span className="text-xs font-bold text-black/70">
+                  <span className="text-xs text-black/45">Actions</span>
+                  <span className="text-xs font-medium">{actions.length}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-black/45">Completion</span>
+                  <span className="text-xs font-medium">
                     {actions.length > 0
                       ? Math.round((actions.filter(a => actionRecords[a.id]?.completed).length / actions.length) * 100)
                       : 0}%
@@ -429,103 +459,92 @@ export default function MorningRoutinePage() {
 
       <BottomBar active="morning" />
 
+      {/* Runner Dialog */}
       <Dialog open={runnerOpen} onOpenChange={setRunnerOpen}>
-        <DialogContent className="max-w-4xl w-full h-full sm:h-[90vh] flex flex-col p-0 overflow-hidden border-none bg-transparent shadow-none">
-          <div className="flex-1 flex flex-col bg-[#f8f6f1]/95 backdrop-blur-2xl p-6 sm:p-8 rounded-none sm:rounded-[40px] sm:m-4 shadow-2xl border border-white/50">
-            <DialogHeader className="flex flex-row items-center justify-between mb-6 sm:mb-12">
-              <DialogTitle className="text-[10px] uppercase tracking-[0.4em] text-black/30 font-bold">
+        <DialogContent className="max-w-lg w-full h-full sm:h-auto flex flex-col p-0 overflow-hidden border-black/6 bg-white shadow-lg sm:rounded-2xl">
+          <div className="flex-1 flex flex-col p-6 sm:p-8">
+            <DialogHeader className="flex flex-row items-center justify-between mb-8">
+              <DialogTitle className="text-[11px] uppercase tracking-[0.3em] text-black/30 font-medium">
                 Morning Runner
               </DialogTitle>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-10 w-10 rounded-full bg-white/50 border border-black/5 hover:bg-white transition-all"
+                className="h-8 w-8 rounded-full hover:bg-black/5"
                 onClick={() => setRunnerOpen(false)}
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </Button>
             </DialogHeader>
 
-            <div className="flex-1 flex flex-col space-y-6 sm:space-y-12 overflow-y-auto">
-              <div className="space-y-2 sm:space-y-4 text-center">
-                <Badge variant="outline" className="px-3 py-0.5 text-[9px] uppercase tracking-[0.3em] border-secondary/20 text-secondary bg-secondary/10 font-bold">
+            <div className="flex-1 flex flex-col space-y-8">
+              <div className="space-y-3 text-center">
+                <p className="text-[11px] font-medium text-black/30">
                   Step {currentIndex + 1} of {actions.length}
-                </Badge>
-                <h2 className="text-3xl sm:text-5xl font-bold tracking-tight leading-tight px-2">
+                </p>
+                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">
                   {currentAction ? currentAction.title : "All Completed"}
                 </h2>
-                <div className="text-4xl sm:text-6xl font-bold tracking-tight tabular-nums text-black/20">
+                <div className="text-3xl font-light tracking-tight tabular-nums text-black/20">
                   {now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-                <Card className="border-black/5 bg-white/40 shadow-sm rounded-2xl sm:rounded-3xl overflow-hidden">
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="text-[9px] uppercase tracking-[0.2em] font-bold text-black/30 mb-2 sm:mb-4">Up Next</div>
-                    <div className="space-y-2">
-                      {upcomingActions.length > 0 ? (
-                        upcomingActions.map((action) => (
-                          <div key={action.id} className="flex items-center justify-between py-1">
-                            <span className="font-medium text-sm sm:text-base text-black/70 truncate mr-2">{action.title}</span>
-                            <Badge variant="outline" className="text-[8px] sm:text-[9px] text-black/20 font-bold border-none shrink-0">STEP {currentIndex + 2}</Badge>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-xs sm:text-sm italic text-black/30">Finish line ahead</p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-black/5 bg-white/40 shadow-sm rounded-2xl sm:rounded-3xl overflow-hidden flex flex-col justify-center">
-                  <CardContent className="p-4 sm:p-8 text-center space-y-3 sm:space-y-4">
-                    <div className="text-[9px] uppercase tracking-[0.2em] font-bold text-black/30">Hold to proceed</div>
-                    <div className="relative h-20 w-20 sm:h-24 sm:w-24 mx-auto">
-                      <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
-                        <circle
-                          cx="50"
-                          cy="50"
-                          r="45"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="8"
-                          className="text-black/5"
-                        />
-                        <circle
-                          cx="50"
-                          cy="50"
-                          r="45"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="8"
-                          strokeLinecap="round"
-                          strokeDasharray={2 * Math.PI * 45}
-                          strokeDashoffset={2 * Math.PI * 45 * (1 - holdProgress / 100)}
-                          className="text-secondary"
-                        />
-                      </svg>
-                      <div
-                        className={`absolute inset-2 rounded-full bg-white shadow-lg flex items-center justify-center select-none touch-none ${
-                          actions.length === 0 || !currentAction
-                            ? "opacity-40 cursor-not-allowed"
-                            : "cursor-pointer"
-                        }`}
-                        onPointerDown={actions.length === 0 || !currentAction ? undefined : handleHoldStart}
-                        onPointerUp={cancelHold}
-                        onPointerLeave={cancelHold}
-                        onPointerCancel={cancelHold}
-                      >
-                        <CheckCircle2 className={`h-6 w-6 sm:h-8 sm:w-8 transition-colors ${holdProgress > 0 ? 'text-secondary' : 'text-black/20'}`} />
+              <div className="grid gap-4 sm:grid-cols-2">
+                {/* Up Next */}
+                <div className="rounded-xl border border-black/4 p-4">
+                  <p className="text-[10px] uppercase tracking-[0.15em] text-black/30 font-medium mb-3">Up Next</p>
+                  {upcomingActions.length > 0 ? (
+                    upcomingActions.map((action) => (
+                      <div key={action.id} className="flex items-center justify-between">
+                        <span className="text-sm text-black/60 truncate mr-2">{action.title}</span>
+                        <span className="text-[10px] text-black/20 shrink-0">Step {currentIndex + 2}</span>
                       </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-black/25">Last step</p>
+                  )}
+                </div>
+
+                {/* Hold to proceed */}
+                <div className="rounded-xl border border-black/4 p-4 flex flex-col items-center justify-center gap-3">
+                  <p className="text-[10px] uppercase tracking-[0.15em] text-black/30 font-medium">Hold to proceed</p>
+                  <div className="relative h-16 w-16">
+                    <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
+                      <circle
+                        cx="50" cy="50" r="45"
+                        fill="none" stroke="currentColor" strokeWidth="6"
+                        className="text-black/[0.04]"
+                      />
+                      <circle
+                        cx="50" cy="50" r="45"
+                        fill="none" stroke="currentColor" strokeWidth="6"
+                        strokeLinecap="round"
+                        strokeDasharray={SVG_CIRCUMFERENCE}
+                        strokeDashoffset={SVG_CIRCUMFERENCE * (1 - holdProgress / 100)}
+                        className="text-secondary transition-none"
+                      />
+                    </svg>
+                    <div
+                      className={`absolute inset-1.5 rounded-full bg-white border border-black/6 flex items-center justify-center select-none touch-none ${
+                        actions.length === 0 || !currentAction
+                          ? "opacity-30 cursor-not-allowed"
+                          : "cursor-pointer"
+                      }`}
+                      onPointerDown={actions.length === 0 || !currentAction ? undefined : handleHoldStart}
+                      onPointerUp={cancelHold}
+                      onPointerLeave={cancelHold}
+                      onPointerCancel={cancelHold}
+                    >
+                      <CheckCircle2 className={`h-5 w-5 transition-colors ${holdProgress > 0 ? 'text-secondary' : 'text-black/15'}`} />
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="mt-6 sm:mt-8">
-              <Progress value={((currentIndex + 1) / actions.length) * 100} className="h-3 bg-black/5" />
+            <div className="mt-6">
+              <Progress value={((currentIndex + 1) / actions.length) * 100} className="h-1.5 bg-black/[0.04]" />
             </div>
           </div>
         </DialogContent>

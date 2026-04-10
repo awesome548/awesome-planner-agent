@@ -35,7 +35,7 @@ All env vars are validated with Zod in `src/lib/env.ts` (loaded from `.env.local
 
 **API routes** (`src/app/api/`):
 - `plan/route.ts` - POST: validates input, fetches today's Google Calendar events, optionally fetches Notion rules, sends prompt to OpenAI (`gpt-5-mini` with `zodTextFormat`), returns validated `Plan` with conflict detection
-- `calendar/create/route.ts` - POST: re-checks conflicts, creates Google Calendar events sequentially
+- `calendar/create/route.ts` - POST: re-checks conflicts, creates Google Calendar events in parallel (batched in groups of 10 for rate-limit safety)
 - `auth/[...nextauth]/route.ts` - NextAuth dynamic handler
 
 **Key data flow for plan generation:**

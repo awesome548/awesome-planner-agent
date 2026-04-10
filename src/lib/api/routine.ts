@@ -8,6 +8,13 @@ const ROUTINE_TABLE = "morning_routine_actions";
 const COMPLETION_TABLE = "morning_routine_completions";
 const ACTION_RECORDS_TABLE = "morning_routine_action_records";
 
+function immutableReorder(items: RoutineAction[], startIndex: number, endIndex: number): RoutineAction[] {
+  const moved = items[startIndex];
+  const without = items.filter((_, i) => i !== startIndex);
+  const reordered = [...without.slice(0, endIndex), moved, ...without.slice(endIndex)];
+  return reordered.map((a, index) => ({ ...a, position: index }));
+}
+
 function getUserId(): string | undefined {
   return useAuthStore.getState().user?.id;
 }
@@ -78,9 +85,12 @@ export function useRoutineCompletions() {
     queryKey: queryKeys.routine.completions(),
     queryFn: async (): Promise<CompletionMap> => {
       const supabase = getSupabaseClient();
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
       const { data, error } = await supabase
         .from(COMPLETION_TABLE)
-        .select("completed_on, completed");
+        .select("completed_on, completed")
+        .gte("completed_on", toISODate(oneYearAgo));
 
       if (error) throw new Error(error.message);
       const map: CompletionMap = {};
@@ -243,10 +253,7 @@ export function useReorderActions() {
       if (!userId) throw new Error("Not authenticated");
 
       const actions = queryClient.getQueryData<RoutineAction[]>(queryKeys.routine.actions()) ?? [];
-      const reordered = [...actions];
-      const [moved] = reordered.splice(startIndex, 1);
-      reordered.splice(endIndex, 0, moved);
-      const normalized = reordered.map((a, index) => ({ ...a, position: index }));
+      const normalized = immutableReorder(actions, startIndex, endIndex);
 
       const supabase = getSupabaseClient();
       const { error } = await supabase
@@ -262,10 +269,7 @@ export function useReorderActions() {
     onMutate: async ({ startIndex, endIndex }: { startIndex: number; endIndex: number }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.routine.actions() });
       const previous = queryClient.getQueryData<RoutineAction[]>(queryKeys.routine.actions()) ?? [];
-      const reordered = [...previous];
-      const [moved] = reordered.splice(startIndex, 1);
-      reordered.splice(endIndex, 0, moved);
-      const normalized = reordered.map((a, index) => ({ ...a, position: index }));
+      const normalized = immutableReorder(previous, startIndex, endIndex);
       queryClient.setQueryData<RoutineAction[]>(queryKeys.routine.actions(), normalized);
       return { previous };
     },
@@ -289,18 +293,25 @@ export function useToggleActionCompletion() {
       if (!userId) throw new Error("Not authenticated");
 
       const dateKey = toISODate(date);
-      const records = queryClient.getQueryData<ActionRecordMap>(queryKeys.routine.records(dateKey)) ?? {};
-      const existing = records[actionId];
-      const newCompleted = !existing?.completed;
+      const supabase = getSupabaseClient();
 
+      // Read actual DB state — not the optimistic cache (which onMutate already flipped)
+      const { data: row } = await supabase
+        .from(ACTION_RECORDS_TABLE)
+        .select("id, completed")
+        .eq("action_id", actionId)
+        .eq("completed_on", dateKey)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      const newCompleted = !(row?.completed ?? false);
       const updated: RoutineActionRecord = {
-        id: existing?.id || recordId,
+        id: row?.id || recordId,
         action_id: actionId,
         completed_on: dateKey,
         completed: newCompleted,
       };
 
-      const supabase = getSupabaseClient();
       const { error } = await supabase
         .from(ACTION_RECORDS_TABLE)
         .upsert(

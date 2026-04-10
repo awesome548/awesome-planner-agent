@@ -75,14 +75,16 @@ export async function POST(req: Request) {
         ? "Draft tasks overlap existing calendar events. Events were still created."
         : undefined;
 
-    const results = await tasks.reduce(
-      async (accPromise, task) => {
-        const acc = await accPromise;
-        const result = await insertCalendarEvent({ task, accessToken, timeZone, calendarId });
-        return [...acc, result];
-      },
-      Promise.resolve([] as Awaited<ReturnType<typeof insertCalendarEvent>>[])
-    );
+    // Parallelize event creation; batch in groups of 10 to respect Google Calendar rate limits
+    const BATCH_SIZE = 10;
+    const results: Awaited<ReturnType<typeof insertCalendarEvent>>[] = [];
+    for (let i = 0; i < tasks.length; i += BATCH_SIZE) {
+      const batch = tasks.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.all(
+        batch.map((task) => insertCalendarEvent({ task, accessToken, timeZone, calendarId }))
+      );
+      results.push(...batchResults);
+    }
 
     const createdCount = results.filter((r) => r.ok).length;
     const errors = results.filter((r) => !r.ok).map((r) => r.error ?? "Unknown error");

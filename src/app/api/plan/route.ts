@@ -9,6 +9,7 @@ import { env } from "@/lib/env";
 import { PlanSchema } from "@/lib/schemas";
 
 const OPENAI_MODEL = env.OPENAI_MODEL ?? "gpt-5-mini-2025-08-07";
+const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
 
 const GenerateRequestSchema = z.object({
   text: z.string().trim().min(1),
@@ -52,8 +53,6 @@ export async function POST(req: Request) {
 
     const { text, timeZone, today, nowLocal, busySummary, busyIntervalsIso, notionRules } =
       parsedRequest.data;
-
-    const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
 
     const promptContent = `User input:\n${text}\n\nToday (local to user): ${nowLocal}\n\nScheduling rule: Only schedule tasks for ${today}. Consider current local time and plan events ahead. Do not schedule any task in the past.\n\nExisting busy times (local):\n${JSON.stringify(
       busySummary

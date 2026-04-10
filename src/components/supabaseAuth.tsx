@@ -1,7 +1,7 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { CalendarDaysIcon } from "@heroicons/react/24/outline";
+import { CalendarDays } from "lucide-react";
 
 /**
  * Shown by SupabaseAuthProvider when no Supabase session exists.
@@ -15,7 +15,7 @@ export default function SupabaseAuthUI() {
     <div className="flex items-center justify-center min-h-screen bg-[#f8f6f1] p-6">
       <div className="w-full max-w-sm p-10 bg-white/60 backdrop-blur-xl rounded-3xl border border-black/5 shadow-2xl shadow-black/5 flex flex-col items-center gap-6 text-center">
         <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-          <CalendarDaysIcon className="h-6 w-6 text-primary" />
+          <CalendarDays className="h-6 w-6 text-primary" />
         </div>
 
         <div>
