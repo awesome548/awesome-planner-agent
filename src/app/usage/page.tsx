@@ -5,7 +5,6 @@ import {
   LayoutGrid,
   Flame,
   CheckCircle2,
-  Calendar as CalendarIcon,
   TrendingUp,
   Target
 } from "lucide-react";
@@ -13,7 +12,6 @@ import { toISODate } from "@/lib/utils";
 import { calculateStreak } from "@/lib/streak";
 import { getCurrentWeekKeys } from "@/lib/week";
 import { useRoutineCompletions } from "@/lib/api/routine";
-import { useUsageRecords } from "@/lib/api/usage";
 import BottomBar from "@/components/bottomBar";
 import PageHeader from "@/components/pageHeader";
 import RecordDotGrid from "@/components/recordDotGrid";
@@ -32,7 +30,6 @@ const EMPTY_MAP: Record<string, boolean> = {};
 const TOTAL_DAYS = 365;
 
 export default function UsagePage() {
-  const { data: usageMap = EMPTY_MAP } = useUsageRecords();
   const { data: completionMap = EMPTY_MAP } = useRoutineCompletions();
 
   const year = new Date().getFullYear();
@@ -49,33 +46,13 @@ export default function UsagePage() {
   }, [todayStart]);
 
   const dots = useMemo(() => {
-    const GRID_DAYS = 60;
     const yearStart = new Date(year, 0, 1);
-
-    let startPoint: Date;
-    if (dayOfYear(todayStart) <= GRID_DAYS) {
-      startPoint = yearStart;
-    } else {
-      startPoint = new Date(todayStart);
-      startPoint.setDate(todayStart.getDate() - (GRID_DAYS - 1));
-    }
-
-    return Array.from({ length: GRID_DAYS }).map((_, i) => {
-      const d = new Date(startPoint);
-      d.setDate(startPoint.getDate() + i);
+    return Array.from({ length: TOTAL_DAYS }).map((_, i) => {
+      const d = new Date(yearStart);
+      d.setDate(yearStart.getDate() + i);
       return { key: toISODate(d), date: d };
     });
-  }, [year, todayStart]);
-
-  const planningStats = useMemo(() => {
-    const completedDays = Object.values(usageMap).filter(Boolean).length;
-    const streak = calculateStreak(usageMap, todayStart, TOTAL_DAYS);
-    const completedThisWeek = currentWeekKeys.reduce((sum, key) => {
-      return usageMap[key] ? sum + 1 : sum;
-    }, 0);
-    const completionPercent = Math.round((Math.min(completedThisWeek, weeklyTargetDays) / weeklyTargetDays) * 100);
-    return { completedDays, streak, completedThisWeek, completionPercent };
-  }, [usageMap, todayStart, TOTAL_DAYS, currentWeekKeys, weeklyTargetDays]);
+  }, [year]);
 
   const routineStats = useMemo(() => {
     const completedDays = Object.values(completionMap).filter(Boolean).length;
@@ -84,7 +61,9 @@ export default function UsagePage() {
       return completionMap[key] ? sum + 1 : sum;
     }, 0);
     const completionPercent = Math.round((Math.min(completedThisWeek, weeklyTargetDays) / weeklyTargetDays) * 100);
-    return { completedDays, streak, completedThisWeek, completionPercent };
+    const daysElapsed = dayOfYear(todayStart);
+    const overallPercent = daysElapsed > 0 ? Math.round((completedDays / daysElapsed) * 100) : 0;
+    return { completedDays, streak, completedThisWeek, completionPercent, daysElapsed, overallPercent };
   }, [completionMap, todayStart, TOTAL_DAYS, currentWeekKeys, weeklyTargetDays]);
 
   return (
@@ -102,55 +81,6 @@ export default function UsagePage() {
         />
 
         <section className="mt-12 space-y-8">
-          {/* Planning Records */}
-          <Card className="border-black/6 shadow-none">
-            <CardHeader className="flex flex-row items-center justify-between pb-4">
-              <div className="space-y-0.5">
-                <div className="text-[10px] uppercase tracking-[0.2em] text-black/30 font-medium flex items-center gap-1.5">
-                  <CalendarIcon className="h-3 w-3" /> Day Planning
-                </div>
-                <CardTitle className="text-lg font-semibold tracking-tight">Consistency</CardTitle>
-              </div>
-              <div className="flex gap-4">
-                <div className="text-right">
-                  <div className="flex items-center gap-1 text-primary text-base font-semibold">
-                    {planningStats.streak} <Flame className="size-4 fill-current" />
-                  </div>
-                  <div className="text-[9px] uppercase tracking-wider text-black/25">streak</div>
-                </div>
-                <div className="text-right">
-                  <div className="flex items-center gap-1 text-primary text-base font-semibold">
-                    {planningStats.completedDays} <CheckCircle2 className="size-4" />
-                  </div>
-                  <div className="text-[9px] uppercase tracking-wider text-black/25">total</div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-6 p-3 rounded-lg bg-black/[0.02] border border-black/4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.15em] text-black/30 font-medium">
-                    <Target className="h-3 w-3" /> Weekly
-                  </div>
-                  <span className="text-[10px] font-medium text-black/40">
-                    {planningStats.completedThisWeek}/{weeklyTargetDays}
-                  </span>
-                </div>
-                <Progress value={planningStats.completionPercent} className="h-1.5 bg-primary/8" indicatorClassName="bg-primary" />
-              </div>
-
-              <div className="p-3 rounded-xl border border-black/4">
-                <RecordDotGrid
-                  dots={dots}
-                  todayStart={todayStart}
-                  filledMap={usageMap}
-                  filledClassName="h-3 w-3 rounded-full bg-primary transition-all hover:scale-125"
-                  pastClassName="h-0.5 w-3 rounded-full bg-primary/15"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Routine Records */}
           <Card className="border-black/6 shadow-none">
             <CardHeader className="flex flex-row items-center justify-between pb-4">
@@ -176,6 +106,18 @@ export default function UsagePage() {
               </div>
             </CardHeader>
             <CardContent>
+              <div className="mb-4 p-3 rounded-lg bg-black/[0.02] border border-black/4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.15em] text-black/30 font-medium">
+                    <LayoutGrid className="h-3 w-3" /> Overall
+                  </div>
+                  <span className="text-[10px] font-medium text-black/40">
+                    {routineStats.completedDays}/{routineStats.daysElapsed} days &middot; {routineStats.overallPercent}%
+                  </span>
+                </div>
+                <Progress value={routineStats.overallPercent} className="h-1.5 bg-secondary/8" indicatorClassName="bg-secondary" />
+              </div>
+
               <div className="mb-6 p-3 rounded-lg bg-black/[0.02] border border-black/4">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.15em] text-black/30 font-medium">
